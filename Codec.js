@@ -9,7 +9,6 @@ class Codec {
         this.settings = Object.assign({
             maxDataLength: 65,
             maxNumLinks: 2,
-            hashingFn: block => crypto.createHash('md5').update(block.toString()).digest('hex'),
             hashStore: new HashStore()
         }, settings);
     }
@@ -17,38 +16,43 @@ class Codec {
     /**
      * Converts a hash to the original string content.
      * It does this by walking the blocks and concatenating their data.
+     *
+     * @param {string} hash
+     * @returns {Promise<string>}
      */
     decode(hash) {
 
-        const { hashStore, hashingFn } = this.settings;
+        const { hashStore } = this.settings;
 
         return hashStore.get(hash) // get the block for this hash
             .then(block => {
 
-                if (hashingFn(block) !== hash) { // confirm the block's integrity
-                    throw new Error('Hashes do not match.');
-                }
-
+                /**
+                 * We want to add our block's data to the data in its links.
+                 * To do this, we will recursively resolve its links into their data.
+                 */
                 return Promise.all([
                     Promise.resolve(block.data) // this block's data
                 ].concat(
-                    block.links.map(hash => this.decode(hash)) // fetch the data from it's links
+                    block.links.map(hash => this.decode(hash)) // convert links into data
                 ));
 
             })
             .then(chunks => chunks.join('')); // concatenate them all
     }
 
-
     /**
-     * Converts a string into a block and returns its hash.
+     * Converts a string into blocks and returns the root block's hash.
      * It recursively creates links as necessary.
      * This algorithm tries to create as many "data-heavy" blocks as possible,
      * rather than "link-heavy".
+     *
+     * @param {string} data
+     * @returns {Promise<string>}
      */
     encode(data) {
 
-        const { hashStore, hashingFn, maxDataLength, maxNumLinks } = this.settings;
+        const { hashStore, maxDataLength, maxNumLinks } = this.settings;
         const block = new Block(data, maxDataLength);
 
         /**
@@ -73,9 +77,8 @@ class Codec {
                         if (block.links.length < maxNumLinks - 1) {
 
                             const linkedBlock = new Block(data, maxDataLength);
-                            const hash = hashingFn(linkedBlock);
 
-                            return hashStore.set(hash, linkedBlock);
+                            return hashStore.set(linkedBlock); // returns the hash to the linked block.
                         }
 
                         /**
@@ -83,10 +86,10 @@ class Codec {
                          * make sure it's a link to a block that represents
                          * the remaining data, rather than the current chunk.
                          */
-                        return this.encode(data);
+                        return this.encode(data); // returns the hash to the new block.
                     })
-                    .then(hash => block.links.push(hash))
-                    .then(() => createLinks());
+                    .then(hash => block.links.push(hash)) // add new links
+                    .then(() => createLinks()); // recursively create more links if necessary.
             }
 
             return p;
@@ -95,10 +98,9 @@ class Codec {
         return createLinks().then(() => {
 
             /**
-             * Create and save the root hash.
+             * Create and save the root block.
              */
-            const hash = hashingFn(block);
-            return hashStore.set(hash, block);
+            return hashStore.set(block);
         });
     }
 
