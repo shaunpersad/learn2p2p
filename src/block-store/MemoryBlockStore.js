@@ -9,6 +9,7 @@ class MemoryBlockStore extends BlockStore {
     constructor() {
         super();
         this.blocks = {};
+        this.hashLists = {};
     }
 
     /**
@@ -46,6 +47,61 @@ class MemoryBlockStore extends BlockStore {
         delete this.blocks[oldHash];
         return this.save(block);
     }
+
+    /**
+     * Returns a unique list id,
+     * which can be later used to reference a list of hashes.
+     *
+     * @returns {Promise<*>}
+     */
+    createHashList() {
+
+        const key = Symbol();
+        this.hashLists[key] = [];
+        return Promise.resolve(key);
+    }
+
+    /**
+     * Maintains a list of hashes for blocks of a particular file.
+     *
+     * @param {string} hash
+     * @param {*|null} [hashListId]
+     * @returns {Promise<*>}
+     */
+    pushToHashList(hash, hashListId = null) {
+
+        if (!hashListId) {
+            hashListId = Symbol();
+            this.hashLists[hashListId] = [];
+        }
+
+        this.hashLists[hashListId].push(hash);
+
+        return Promise.resolve(hashListId);
+    }
+
+    /**
+     * Removes items from the hash list and returns it.
+     *
+     * @param {*} hashListId
+     * @param {number} [amount]
+     * @returns {Promise<[string]>}
+     */
+    pullFromHashList(hashListId, amount = 1) {
+
+        if (!hashListId) {
+            return Promise.resolve(null);
+        }
+
+        const hashList = [];
+        while (amount && this.hashLists[hashListId].length) {
+            hashList.unshift(this.hashLists[hashListId].pop());
+            amount--;
+        }
+
+        return Promise.resolve(hashList);
+    }
+
 }
 
 module.exports = MemoryBlockStore;

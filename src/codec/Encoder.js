@@ -2,89 +2,93 @@ const { Transform } = require('stream');
 const Block = require('./Block');
 
 const BLOCK_STORE = Symbol('block store');
-const MAX_NUM_LINKS = Symbol('max num links');
-const LINKS = Symbol('links');
+const MAX_LINKS_PER_BLOCK = Symbol('max links per block');
+const HASH_LIST_ID = Symbol('hash list id');
 
 /**
  * A transform stream that converts some input stream into a final hash representing its contents.
  * e.g. If file contents are streamed in, it will convert it to a hash representing those contents.
  * It handles the creation of the underlying blocks (and their links to other blocks),
  * where each block represents a chunk of the contents.
- *
- * This algorithm builds our Merkle DAG of blocks in reverse, meaning that the root node
- * actually contains the very last chunk of data we received.
- *
- * To reassemble the contents in the correct order, start at the root,
- * and prepend (instead of append) subsequent link data.
  */
 class Encoder extends Transform {
 
-    constructor(blockStore, maxNumLinks, streamOptions) {
+    constructor(blockStore, maxLinksPerBlock, streamOptions) {
         super(streamOptions);
         this[BLOCK_STORE] = blockStore;
-        this[MAX_NUM_LINKS] = maxNumLinks;
-        this[LINKS] = [];
+        this[MAX_LINKS_PER_BLOCK] = maxLinksPerBlock;
+        this[HASH_LIST_ID] = null;
     }
 
     /**
      * For each chunk of data that comes in, create and save a block representing that chunk.
-     * We will build up an array of links, and assign them to blocks as the array is filled up.
-     *
+     * For each block that is created, we want to save its hash in a list unique to this stream.
+     * We will later use this list to build our links.
      */
     _transform(data, encoding, callback) {
 
         const block = new Block(data);
 
-        if (this[LINKS].length === this[MAX_NUM_LINKS]) { // max links reached, so assign them to this block.
-
-            block.links = this[LINKS];
-            this[LINKS] = []; // begin another list
-        }
-
         return this[BLOCK_STORE]
             .save(block)
             .then(hash => {
 
-                this[LINKS].unshift(hash); // add new hash to list
+                return this[BLOCK_STORE].pushToHashList(hash, this[HASH_LIST_ID]);
+            })
+            .then(hashListId => {
+
+                this[HASH_LIST_ID] = hashListId;
                 callback();
             })
             .catch(callback);
     }
 
     /**
-     * At the end of the stream,
-     * whichever hash is left on the list of links at position 0
-     * is our root block.
+     * Now that all our blocks have been made, we need to link them up.
+     *
+     * To do this, we will pull the last MAX_LINKS_PER_BLOCK + 1
+     * hashes from the list we were keeping.
+     * We will use the first element of that list as the parent block,
+     * and the rest will become its links.
+     *
+     * When we only have one hash in the list left,
+     * we've reached the end. That's the root hash.
+     *
+     * Note: the blocks that we update with links will have changed their
+     * hashes in the process, since a hash is determined by a block's content,
+     * which has fundamentally changed by adding links to it.
+     *
      */
     _flush(callback) {
 
-        const hash = this[LINKS].shift();
+        const link = () => {
 
-        if (!this[LINKS].length) {
+            return this[BLOCK_STORE]
+                .pullFromHashList(this[HASH_LIST_ID], this[MAX_LINKS_PER_BLOCK] + 1)
+                .then(([ hash, ...links ]) => {
 
-            this.push(hash);
-            return callback();
-        }
+                    if (!links.length) { // no more links
 
-        /**
-         * We want to assign whatever links are left over to
-         * our root block.
-         */
-        this[BLOCK_STORE]
-            .fetch(hash)
-            .then(block => {
+                        return this.push(hash); // send the root hash
+                    }
 
-                block.links = this[LINKS];
+                    return this[BLOCK_STORE]
+                        .fetch(hash)
+                        .then(block => {
 
-                return this[BLOCK_STORE].update(block, hash);
-            })
-            .then(hash => {
+                            block.links = links;
 
-                this.push(hash);
-                callback();
-            })
-            .catch(callback);
+                            return this[BLOCK_STORE].update(block, hash);
+                        })
+                        .then(updatedHash => {
 
+                            return this[BLOCK_STORE].pushToHashList(updatedHash, this[HASH_LIST_ID]);
+                        })
+                        .then(() => link());
+                });
+        };
+
+        link().then(() => callback()).catch(callback);
     }
 }
 

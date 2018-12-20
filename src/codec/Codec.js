@@ -12,13 +12,13 @@ class Codec {
     constructor(options = {}) {
 
         this.options = Object.assign({
-            maxNumLinks: 2,
+            maxLinksPerBlock: 2,
             blockStore: new MemoryBlockStore()
         }, options);
     }
 
     encoder() {
-        return new Encoder(this.options.blockStore, this.options.maxNumLinks);
+        return new Encoder(this.options.blockStore, this.options.maxLinksPerBlock);
     }
 
     decoder() {
