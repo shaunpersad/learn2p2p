@@ -44,6 +44,32 @@ class BlockStore {
     update(block, oldHash) {
         throw new Error('Please override the update(block, oldHash) method.');
     }
+
+    /**
+     * Maintains a list of hashes for blocks.
+     * If no hash list id is supplied,
+     * a new one is created.
+     *
+     * Returns the id of the list.
+     *
+     * @param {string} hash
+     * @param {*|null} [hashListId]
+     * @returns {Promise<*>}
+     */
+    pushToHashList(hash, hashListId = null) {
+        throw new Error('Please override the pushToHashList(hash[, hashListId]) method.');
+    }
+
+    /**
+     * Removes items from the hash list and returns it.
+     *
+     * @param {*} hashListId
+     * @param {number} [amount]
+     * @returns {Promise<[string]>}
+     */
+    pullFromHashList(hashListId, amount = 1) {
+        throw new Error('Please override the pullFromHashList(hashListId[, amount]) method.');
+    }
 }
 
 module.exports = BlockStore;

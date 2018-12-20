@@ -49,20 +49,11 @@ class MemoryBlockStore extends BlockStore {
     }
 
     /**
-     * Returns a unique list id,
-     * which can be later used to reference a list of hashes.
+     * Maintains a list of hashes for blocks.
+     * If no hash list id is supplied,
+     * a new one is created.
      *
-     * @returns {Promise<*>}
-     */
-    createHashList() {
-
-        const key = Symbol();
-        this.hashLists[key] = [];
-        return Promise.resolve(key);
-    }
-
-    /**
-     * Maintains a list of hashes for blocks of a particular file.
+     * Returns the id of the list.
      *
      * @param {string} hash
      * @param {*|null} [hashListId]
@@ -90,7 +81,7 @@ class MemoryBlockStore extends BlockStore {
     pullFromHashList(hashListId, amount = 1) {
 
         if (!hashListId) {
-            return Promise.resolve(null);
+            return Promise.resolve([]);
         }
 
         const hashList = [];
