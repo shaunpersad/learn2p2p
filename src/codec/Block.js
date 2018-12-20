@@ -14,6 +14,7 @@ class Block {
     constructor(data) {
         this.data = data;
         this.links = [];
+        this.computedHash = '';
     }
 
     /**
@@ -28,7 +29,7 @@ class Block {
     }
 
     hash() {
-        return crypto.createHash('sha256').update(this.toString()).digest('hex');
+        return this.computedHash = crypto.createHash('sha256').update(this.toString()).digest('hex');
     }
 }
 

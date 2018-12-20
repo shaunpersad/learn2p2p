@@ -1,4 +1,3 @@
-const { Readable } = require('stream');
 const MemoryBlockStore = require('../block-store/MemoryBlockStore');
 const Encoder = require('./Encoder');
 const Decoder = require('./Decoder');
@@ -17,12 +16,24 @@ class Codec {
         }, options);
     }
 
-    encoder() {
-        return new Encoder(this.options.blockStore, this.options.maxLinksPerBlock);
+    /**
+     * Returns an Encoder stream.
+     *
+     * @param {{}} [streamOptions]
+     * @returns {Encoder}
+     */
+    encoder(streamOptions) {
+        return new Encoder(this.options.blockStore, this.options.maxLinksPerBlock, streamOptions);
     }
 
-    decoder() {
-        return new Decoder(this.options.blockStore);
+    /**
+     * Returns a Decoder stream.
+     *
+     * @param {{}} [streamOptions]
+     * @returns {Decoder}
+     */
+    decoder(streamOptions) {
+        return new Decoder(this.options.blockStore, streamOptions);
     }
 
     /**
