@@ -34,22 +34,18 @@ class Encoder extends Transform {
     _transform(data, encoding, callback) {
 
         const block = new Block(data);
-        const maxLinks = this[LINKS].length === this[MAX_NUM_LINKS];
 
-        if (maxLinks) { // max links reached, so assign them to this block.
+        if (this[LINKS].length === this[MAX_NUM_LINKS]) { // max links reached, so assign them to this block.
+
             block.links = this[LINKS];
+            this[LINKS] = []; // begin another list
         }
 
         return this[BLOCK_STORE]
             .save(block)
             .then(hash => {
 
-                if (maxLinks) {
-                    this[LINKS] = [ hash ]; // begin another list
-                } else {
-                    this[LINKS].unshift(hash); // add to existing list
-                }
-
+                this[LINKS].unshift(hash); // add new hash to list
                 callback();
             })
             .catch(callback);
@@ -85,7 +81,6 @@ class Encoder extends Transform {
             .then(hash => {
 
                 this.push(hash);
-
                 callback();
             })
             .catch(callback);
