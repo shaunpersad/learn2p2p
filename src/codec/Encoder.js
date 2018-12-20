@@ -69,6 +69,7 @@ class Encoder extends Transform {
 
                     if (!links.length) { // no more links
 
+                        this[HASH_LIST_ID] = null; // in case this stream is reused
                         return this.push(hash); // send the root hash
                     }
 
