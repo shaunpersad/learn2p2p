@@ -18,7 +18,7 @@ Codec.stringStream(content, highWaterMark) // in most cases this will be a file/
     })
     .pipe(codec.decoder()) // pipe the hash into our decoder
     .on('data', chunk => {
-        assembled+= chunk.toString('utf8'); // reassemble our string using each block's data
+        assembled = chunk.toString('utf8') + assembled; // reassemble our string using each block's data
     })
     .on('end', () => {
 

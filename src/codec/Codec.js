@@ -18,11 +18,11 @@ class Codec {
     }
 
     encoder() {
-        return new Encoder(this.options);
+        return new Encoder(this.options.blockStore, this.options.maxNumLinks);
     }
 
     decoder() {
-        return new Decoder(this.options);
+        return new Decoder(this.options.blockStore);
     }
 
     /**

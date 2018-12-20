@@ -3,8 +3,6 @@ const CONTENT = Symbol('content');
 
 /**
  * Helps stream strings.
- * In most applications this will not be necessary since the stream will come from either a file
- * or a network request.
  */
 class StringStream extends Readable {
 

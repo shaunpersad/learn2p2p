@@ -1,23 +1,21 @@
 const { Transform } = require('stream');
-const MemoryBlockStore = require('../block-store/MemoryBlockStore');
 
-const OPTIONS = Symbol('options');
+const BLOCK_STORE = Symbol('block store');
 
 /**
  * A transform stream that converts a hash representing a file's contents
- * to stream of those contents in the proper order.
+ * to stream of those contents.
  * This output stream can then be used to reassemble the file.
  */
 class Decoder extends Transform {
 
-    constructor(options = { blockStore: new MemoryBlockStore(), streamOptions: null }) {
-        super(options.streamOptions);
-        this[OPTIONS] = options;
+    constructor(blockStore, streamOptions) {
+        super(streamOptions);
+        this[BLOCK_STORE] = blockStore;
     }
 
     _transform(hash, encoding, callback) {
 
-        const { blockStore } = this[OPTIONS];
         const hashes = [ hash ]; // acts as a queue of hashes to blocks
 
         /**
@@ -27,7 +25,7 @@ class Decoder extends Transform {
          */
         const fetch = () => {
 
-            return blockStore
+            return this[BLOCK_STORE]
                 .fetch(hashes.shift())
                 .then(block => {
 
