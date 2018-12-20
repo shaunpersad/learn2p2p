@@ -4,9 +4,9 @@ const MemoryBlockStore = require('../block-store/MemoryBlockStore');
 const OPTIONS = Symbol('options');
 
 /**
- * A transform stream that accepts a hash representing a file's contents,
- * and uses it to stream out those contents in the proper order.
- * This can then be used to reassemble the file.
+ * A transform stream that converts a hash representing a file's contents
+ * to stream of those contents in the proper order.
+ * This output stream can then be used to reassemble the file.
  */
 class Decoder extends Transform {
 

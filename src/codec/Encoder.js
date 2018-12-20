@@ -6,7 +6,7 @@ const OPTIONS = Symbol('options');
 const HASHES = Symbol('hashes');
 
 /**
- * Converts some input stream into a final hash representing its contents.
+ * A transform stream that converts some input stream into a final hash representing its contents.
  * e.g. If file contents are streamed in, it will convert it to a hash representing those contents.
  * It handles the creation of the underlying blocks (and their links to other blocks),
  * where each block represents a chunk of the contents.
