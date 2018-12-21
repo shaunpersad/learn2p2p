@@ -1,5 +1,5 @@
 const { Transform } = require('stream');
-const Block = require('./Block');
+const Block = require('../Block');
 
 const BLOCK_STORE = Symbol('block store');
 const MAX_LINKS_PER_BLOCK = Symbol('max links per block');

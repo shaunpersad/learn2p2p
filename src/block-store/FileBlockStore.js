@@ -12,7 +12,7 @@ const removeFile = util.promisify(fs.unlink);
 const randomBytes = util.promisify(crypto.randomBytes);
 
 const BlockStore = require('./BlockStore');
-const Block = require('../codec/Block');
+const Block = require('../Block');
 
 /**
  * Models our hash list as a series of strings in a file.
