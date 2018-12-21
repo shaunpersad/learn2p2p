@@ -130,7 +130,6 @@ class FileBlockStore extends BlockStore {
 
         const hashes = [];
 
-
         return this.getHashList(hashListId)
             .then(hashList => {
 
