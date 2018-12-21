@@ -10,10 +10,11 @@ class Block {
     /**
      *
      * @param {Buffer} data
+     * @param {[]} [links]
      */
-    constructor(data) {
-        this.data = data;
-        this.links = [];
+    constructor(data, links = []) {
+        this.data = data || '';
+        this.links = links || [];
         this.computedHash = '';
     }
 
@@ -30,6 +31,12 @@ class Block {
 
     hash() {
         return this.computedHash = crypto.createHash('sha256').update(this.toString()).digest('hex');
+    }
+
+    static fromString(contents) {
+
+        const [ data, ...links ] = JSON.parse(contents);
+        return new this(data, links);
     }
 }
 

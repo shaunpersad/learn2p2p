@@ -1,3 +1,11 @@
+class InvalidBlockError extends Error {
+
+    constructor(message = 'Block contents do not match its hash.') {
+
+        super(message);
+    }
+}
+
 /**
  * A simple class to store blocks.
  * It is asynchronous, so it may be replaced
@@ -7,6 +15,7 @@ class BlockStore {
 
     /**
      * Gets the block associated with this hash.
+     *
      * @param {string} hash
      * @returns {Promise<Block>}
      */
@@ -69,6 +78,20 @@ class BlockStore {
      */
     pullFromHashList(hashListId, amount = 1) {
         throw new Error('Please override the pullFromHashList(hashListId[, amount]) method.');
+    }
+
+    /**
+     * Removes/cleans up the hash list.
+     *
+     * @param {*} hashListId
+     * @returns {Promise}
+     */
+    removeHashList(hashListId) {
+        throw new Error('Please override the removeHashList(hashListId) method.');
+    }
+
+    static get InvalidBlockError() {
+        return InvalidBlockError;
     }
 }
 

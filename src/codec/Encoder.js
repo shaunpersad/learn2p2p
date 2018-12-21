@@ -69,7 +69,6 @@ class Encoder extends Transform {
 
                     if (!links.length) { // no more links
 
-                        this[HASH_LIST_ID] = null; // in case this stream is reused
                         return this.push(hash); // send the root hash
                     }
 
@@ -86,10 +85,15 @@ class Encoder extends Transform {
                             return this[BLOCK_STORE].pushToHashList(updatedHash, this[HASH_LIST_ID]);
                         })
                         .then(() => link());
-                });
+                })
+                .catch(err => console.log(err));
         };
 
-        link().then(() => callback()).catch(callback);
+        link()
+            .then(() => this[BLOCK_STORE].removeHashList(this[HASH_LIST_ID]))
+            .then(() => (this[HASH_LIST_ID] = null))
+            .then(() => callback())
+            .catch(callback);
     }
 }
 

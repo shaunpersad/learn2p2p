@@ -14,6 +14,7 @@ class MemoryBlockStore extends BlockStore {
 
     /**
      * Gets the block associated with this hash.
+     *
      * @param {string} hash
      * @returns {Promise<Block>}
      */
@@ -91,6 +92,17 @@ class MemoryBlockStore extends BlockStore {
         }
 
         return Promise.resolve(hashList);
+    }
+
+    /**
+     * Removes/cleans up the hash list.
+     *
+     * @param {*} hashListId
+     * @returns {Promise}
+     */
+    removeHashList(hashListId) {
+        delete this.hashLists[hashListId];
+        return Promise.resolve();
     }
 
 }
