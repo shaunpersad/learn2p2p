@@ -85,8 +85,7 @@ class Encoder extends Transform {
                             return this[BLOCK_STORE].pushToHashList(updatedHash, this[HASH_LIST_ID]);
                         })
                         .then(() => link());
-                })
-                .catch(err => console.log(err));
+                });
         };
 
         link()
