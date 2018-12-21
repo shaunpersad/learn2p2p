@@ -5,7 +5,7 @@ const highWaterMark = 65; // the maximum size of each block's data
 const maxLinksPerBlock = 2; // the maximum number of links a block can have
 
 const blockStore = new Store(); // a place to store generated blocks
-const codec = new Codec({ maxNumLinks: maxLinksPerBlock, blockStore }); // performs data <=> hash conversions
+const codec = new Codec({ maxLinksPerBlock, blockStore }); // performs data <=> hash conversions
 
 const content = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat.';
 let assembled = '';

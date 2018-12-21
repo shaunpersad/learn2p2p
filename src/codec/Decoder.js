@@ -5,8 +5,8 @@ const HASHES = Symbol('hashes');
 const READ_FROM_WRITE = Symbol('read from write');
 
 /**
- * A transform stream that converts a hash representing a file's contents
- * to stream of those contents.
+ * A duplex stream that converts a hash representing a file's contents
+ * to a stream of those contents (or blocks representing them).
  * This output stream can then be used to reassemble the file.
  */
 class Decoder extends Duplex {
@@ -27,7 +27,7 @@ class Decoder extends Duplex {
 
         this[HASHES] = [ hash.toString('utf8') ];
 
-        if (this[READ_FROM_WRITE]) { // don't force a read unless the stream previously tried to read.
+        if (this[READ_FROM_WRITE]) { // don't force a read unless the stream previously tried to read
             this._read();
         }
         callback();
@@ -37,17 +37,17 @@ class Decoder extends Duplex {
     _read() {
 
         if (!this[HASHES]) {
-            this[READ_FROM_WRITE] = true; // we tried to read but there was nothing available yet.
+            this[READ_FROM_WRITE] = true; // we tried to read but there was nothing available yet
             return;
         }
 
-        if (!this[HASHES].length) { // no more hashes in the stack.
+        if (!this[HASHES].length) { // no more hashes in the queue
             this[HASHES] = null;
             return this.push(null);
         }
 
         this[BLOCK_STORE]
-            .fetch(this[HASHES].shift()) // get a hash from the stack and fetch its block
+            .fetch(this[HASHES].shift()) // get a hash from the queue and fetch its block
             .then(block => {
 
                 this[HASHES].push(...block.links); // add it's links (if any) to the queue

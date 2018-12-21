@@ -1,11 +1,3 @@
-class InvalidBlockError extends Error {
-
-    constructor(message = 'Block contents do not match its hash.') {
-
-        super(message);
-    }
-}
-
 /**
  * A simple class to store blocks.
  * It is asynchronous, so it may be replaced
@@ -88,10 +80,6 @@ class BlockStore {
      */
     removeHashList(hashListId) {
         throw new Error('Please override the removeHashList(hashListId) method.');
-    }
-
-    static get InvalidBlockError() {
-        return InvalidBlockError;
     }
 }
 
