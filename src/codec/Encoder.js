@@ -31,15 +31,9 @@ class Encoder extends Transform {
 
         return this[BLOCK_STORE]
             .save(block)
-            .then(hash => {
-
-                return this[BLOCK_STORE].pushToHashList(hash, this[HASH_LIST_ID]);
-            })
-            .then(hashListId => {
-
-                this[HASH_LIST_ID] = hashListId;
-                callback();
-            })
+            .then(hash => this[BLOCK_STORE].pushToHashList(hash, this[HASH_LIST_ID]))
+            .then(hashListId => (this[HASH_LIST_ID] = hashListId))
+            .then(() => callback())
             .catch(callback);
     }
 
