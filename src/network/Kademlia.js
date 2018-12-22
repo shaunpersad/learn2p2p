@@ -11,35 +11,14 @@ const Node = require('./Node');
 class Kademlia {
 
     constructor() {
-        this.keysDirectory = '';
-        this.rootNode = null;
         this.rpc = null;
     }
 
-    bootstrap({ port, address }, { port: peerPort, address: peerAddress }, keysDirectory = path.resolve(__dirname, '../../data/keys')) {
-
-        this.keysDirectory = keysDirectory;
-
-        this.init()
-            .then(() => {
-
-                this.rpc = new RPC(this.rootNode, port, address);
-
-                if (peerAddress && peerPort) {
-
-                    return this.rpc.ping(new Node(peerAddress, peerPort));
-                }
-            })
-            .then(() => {
-
-            });
-    }
-
-    init() {
+    bootstrap({ port, address }, { port: peerPort, address: peerAddress }, dataDirectory = path.resolve(__dirname, '../../data')) {
 
         return Promise.all([
-            readFile(path.join(this.keysDirectory, 'private.pem')),
-            readFile(path.join(this.keysDirectory, 'public.pem'))
+            readFile(this.constructor.privateKeyPath(dataDirectory)),
+            readFile(this.constructor.publicKeyPath(dataDirectory))
         ])
             .catch(err => {
 
@@ -47,16 +26,32 @@ class Kademlia {
                     throw err;
                 }
 
-                return this.generateKeys();
+                return this.generateKeys(dataDirectory);
             })
             .then(([ privateKey, publicKey ]) => {
 
-                this.node = Node.fromPublicKey(publicKey);
-                this.node.privateKey = privateKey;
-            });
+                const rootNode = Node.createRootNode(publicKey, privateKey);
+                this.rpc = new RPC(rootNode, { port, address });
+
+                this.rpc.on('message', this.onMessage.bind(this));
+
+                if (peerAddress && peerPort) {
+
+                    return this.rpc.ping(new Node(peerAddress, peerPort));
+                }
+            })
     }
 
-    generateKeys() {
+    onMessage({ node, type, content, id }) {
+
+        switch (type) {
+            case 'PING':
+                this.rpc.pingReply(node, id);
+                break;
+        }
+    }
+
+    generateKeys(dataDirectory = path.resolve(__dirname, '../../data')) {
 
         return new Promise((resolve, reject) => {
 
@@ -65,7 +60,7 @@ class Kademlia {
             }
 
             crypto.generateKeyPair('rsa', {
-                modulusLength: 4096,
+                modulusLength: 2048,
                 publicKeyEncoding: { type: 'spki', format: 'pem' },
                 privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
             }, (err, publicKey, privateKey) => {
@@ -75,11 +70,21 @@ class Kademlia {
                 }
 
                 Promise.all([
-                    writeFile(path.join(this.keysDirectory, 'private.pem'), privateKey),
-                    writeFile(path.join(this.keysDirectory, 'public.pem'), publicKey)
+                    writeFile(this.constructor.privateKeyPath(dataDirectory), privateKey),
+                    writeFile(this.constructor.publicKeyPath(dataDirectory), publicKey)
                 ]).then(() => ([ publicKey, privateKey ]));
             });
         });
+    }
+
+    static privateKeyPath(dataDirectory) {
+
+        return path.join(dataDirectory, 'private', 'private-key.pem');
+    }
+
+    static publicKeyPath(dataDirectory) {
+
+        return path.join(dataDirectory, 'public', 'public-key.pem');
     }
 }
 

@@ -77,7 +77,7 @@ class FileBlockStoreHashList {
     }
 
     static hashListPath(dataDirectory, id) {
-        return path.join(dataDirectory, 'hash-lists', `${id}.txt`);
+        return path.join(dataDirectory, 'private', 'hash-lists', `${id}.txt`);
     }
 
     /**

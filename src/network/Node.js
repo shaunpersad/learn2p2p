@@ -2,7 +2,7 @@ const crypto = require('crypto');
 
 class Node {
 
-    constructor(nodeId, publicKey, address, port) {
+    constructor(nodeId, address, port, publicKey = null) {
         this.address = address;
         this.port = port;
         this.id = nodeId;
@@ -25,7 +25,15 @@ class Node {
             throw new Error('Node ID did not originate from this public key.');
         }
 
-        return new this(nodeId, publicKey, address, port);
+        return new this(nodeId, address, port, publicKey);
+    }
+
+    static createRootNode(publicKey, privateKey) {
+
+        const node = this.fromPublicKey(publicKey);
+        node.privateKey = privateKey;
+
+        return node;
     }
 }
 

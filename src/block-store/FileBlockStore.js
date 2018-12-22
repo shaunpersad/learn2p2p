@@ -28,7 +28,7 @@ class FileBlockStore extends BlockStore {
      * @returns {string}
      */
     blockPath(hash) {
-        return path.join(this.dataDirectory, 'blocks', `${hash}.json`);
+        return path.join(this.dataDirectory, 'public', 'blocks', `${hash}.json`);
     }
 
     /**

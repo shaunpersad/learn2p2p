@@ -1,23 +1,26 @@
 const dgram = require('dgram');
 const crypto = require('crypto');
+const EventEmitter = require('events');
 
 const RoutingTable = require('./RoutingTable');
 const Node = require('./Node');
 
-class RPC {
+class RPC extends EventEmitter {
 
-    constructor(rootNode, port, address) {
+    constructor(rootNode, { port, address }, concurrency = 3) {
+
+        super();
 
         this.rootNode = rootNode;
+        this.concurrency = concurrency;
 
         this.server = dgram.createSocket('udp4');
         this.server.on('error', this.onError.bind(this));
         this.server.on('message', this.onMessage.bind(this));
-        this.server.on('listening', this.onListening.bind(this));
+        this.server.on('listening', () => console.log('Listening on port', port));
         this.server.bind(port, address);
 
         this.routingTable = new RoutingTable(this.rootNode);
-
         this.pendingRequests = {};
     }
 
@@ -35,7 +38,7 @@ class RPC {
             return;
         }
 
-        try {
+        Promise.resolve().then(() => {
 
             const encrypted = parseInt(pieces.shift());
             const signatureLength = parseInt(pieces.shift());
@@ -47,46 +50,61 @@ class RPC {
                 bodyJSON = crypto.privateDecrypt(this.rootNode.privateKey, Buffer.from(bodyJSON, 'base64')).toString('utf8');
             }
 
-            const { from: { nodeId, publicKey }, messageId, type, content } = JSON.parse(bodyJSON);
-            const node = Node.fromPublicKey(publicKey, address, port, nodeId);
-            const verify = crypto.createVerify('SHA256');
-            verify.update(bodyJSON);
+            const { id, nodeId, type, content } = JSON.parse(bodyJSON);
 
-            if (!verify.verify(publicKey, signature)) {
-                return;
-            }
+            const node = type === ('PING' || 'PING_REPLY')
+                ? Node.fromPublicKey(content, address, port, nodeId)
+                : (this.routingTable.getNode(nodeId) || new Node(nodeId, address, port));
 
-            this.routingTable.addCandidate(node);
+            const p = node.publicKey ? Promise.resolve(node.publicKey) : this.ping(node);
 
-            if (type.endsWith('_REPLY') && this.pendingRequests[messageId]) {
-                this.pendingRequests[messageId](content);
-                delete this.pendingRequests[messageId];
-            } else {
-                this.handleIncomingMessage(node, type, content, messageId);
-            }
+            return p.then(publicKey => {
 
-        } catch (err) {
+                node.publicKey = publicKey;
 
-        }
+
+                if (!crypto.createVerify('SHA256').update(bodyJSON).verify(node.publicKey, signature)) {
+
+                    return;
+                }
+
+                if (type.endsWith('_REPLY') && this.pendingRequests[id]) {
+
+                    this.pendingRequests[id](content);
+                    delete this.pendingRequests[id];
+
+                } else {
+                    this.emit('message', { node, type, content, id });
+                }
+
+                const bucketIndex = this.routingTable.addCandidate(node);
+
+                if (bucketIndex !== -1) {
+
+                    const bucket = this.routingTable.getBucket(bucketIndex);
+                    const nodes = bucket.getLeastRecentNodes(this.concurrency);
+
+                    return Promise.all(nodes.map(node => this.ping(node).catch(err => bucket.removeNode(node.id))))
+                }
+            });
+
+        }).catch(console.log);
 
     }
 
-    sendMessage(toNode, type, content, encrypted = true, messageId) {
+    sendMessage(toNode, type, content, encrypted = true, messageId = null) {
 
         return new Promise((resolve, reject) => {
 
             const body = {
-                from: this.rootNode,
-                messageId: messageId || Math.random(),
+                id: messageId || Math.random(),
+                nodeId: this.rootNode.id,
                 type,
                 content
             };
 
             let bodyJSON = JSON.stringify(body);
-
-            const sign = crypto.createSign('SHA256');
-            sign.update(bodyJSON);
-            const signature = sign.sign(this.rootNode.privateKey, 'hex');
+            const signature = crypto.createSign('SHA256').update(bodyJSON).sign(this.rootNode.privateKey, 'hex');
 
             if (encrypted) {
 
@@ -101,7 +119,7 @@ class RPC {
 
             this.server.send(message, toNode.port, toNode.address, err => {
 
-                err ? reject(err) : resolve(body.messageId);
+                err ? reject(err) : resolve(body.id);
             });
         });
     }
@@ -110,7 +128,7 @@ class RPC {
 
         return new Promise((resolve, reject) => {
 
-            this.sendMessage(toNode, 'PING', '', false)
+            this.sendMessage(toNode, 'PING', this.rootNode.publicKey, false)
                 .then(messageId => {
 
                     this.pendingRequests[messageId] = resolve;
@@ -127,6 +145,11 @@ class RPC {
         });
     }
 
+    pingReply(toNode, messageId) {
+
+        return this.sendMessage(toNode, 'PING_REPLY', this.rootNode.publicKey, true, messageId);
+    }
+
     store(toNode, key, value) {
 
         return this.sendMessage(toNode, 'STORE', { key, value });
@@ -135,14 +158,6 @@ class RPC {
     reply(toNode, messageId, type, payload) {
 
         return this.sendMessage(toNode, `${type}_REPLY`, payload, type !== 'PING', messageId);
-    }
-
-    handleIncomingMessage(node, type, content, messageId) {
-
-    }
-
-    onListening() {
-
     }
 }
 
