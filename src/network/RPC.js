@@ -16,7 +16,7 @@ class RPC extends EventEmitter {
 
         this.server = dgram.createSocket('udp4');
         this.server.on('error', this.onError.bind(this));
-        this.server.on('message', this.onMessage.bind(this));
+        this.server.on('message', this.receiveMessage.bind(this));
         this.server.on('listening', () => console.log('Listening on port', port));
         this.server.bind(port, address);
 
@@ -29,26 +29,28 @@ class RPC extends EventEmitter {
         this.server.close();
     }
 
-    onMessage(message, { address, port }) {
+    receiveMessage(message, { address, port }) {
 
         message = message.toString();
-        const pieces = message.split('\n');
+        let pieces = message.split('\n');
 
-        if (pieces.length < 3) {
+        if (pieces.length < 2) {
             return;
         }
 
         Promise.resolve().then(() => {
 
             const encrypted = parseInt(pieces.shift());
+            let bodyText = pieces.join('\n');
+            if (encrypted) {
+                bodyText = crypto.privateDecrypt(this.rootNode.privateKey, Buffer.from(bodyText, 'base64')).toString('utf8');
+            }
+            pieces = bodyText.split('\n');
+
             const signatureLength = parseInt(pieces.shift());
             const afterHeader = pieces.join('\n');
             const signature = afterHeader.substring(0, signatureLength);
-            let bodyJSON = afterHeader.replace(signature, '');
-
-            if (encrypted) {
-                bodyJSON = crypto.privateDecrypt(this.rootNode.privateKey, Buffer.from(bodyJSON, 'base64')).toString('utf8');
-            }
+            const bodyJSON = afterHeader.replace(signature, '');
 
             const { id, nodeId, type, content } = JSON.parse(bodyJSON);
 
@@ -61,7 +63,7 @@ class RPC extends EventEmitter {
             return p.then(publicKey => {
 
                 node.publicKey = publicKey;
-                
+
                 if (!crypto.createVerify('SHA256').update(bodyJSON).verify(node.publicKey, signature)) {
 
                     return this.routingTable.removeNode(node.id);
@@ -102,8 +104,9 @@ class RPC extends EventEmitter {
                 content
             };
 
-            let bodyJSON = JSON.stringify(body);
+            const bodyJSON = JSON.stringify(body);
             const signature = crypto.createSign('SHA256').update(bodyJSON).sign(this.rootNode.privateKey, 'hex');
+            let bodyText = `${signature.length}\n${signature}${bodyJSON}`;
 
             if (encrypted) {
 
@@ -111,10 +114,10 @@ class RPC extends EventEmitter {
                     throw new Error('Cannot encrypt without a public key.');
                 }
 
-                bodyJSON = crypto.publicEncrypt(toNode.publicKey, Buffer.from(bodyJSON)).toString('base64');
+                bodyText = crypto.publicEncrypt(toNode.publicKey, Buffer.from(bodyText)).toString('base64');
             }
 
-            const message = `${encrypted? '1':'0'}\n${signature.length}\n${signature}${bodyJSON}`;
+            const message = `${encrypted?'1':'0'}\n${bodyText}`;
 
             this.server.send(message, toNode.port, toNode.address, err => {
 
