@@ -26,13 +26,12 @@ class Kademlia {
                     throw err;
                 }
 
-                return this.generateKeys(dataDirectory);
+                return this.constructor.generateKeys(dataDirectory);
             })
             .then(([ privateKey, publicKey ]) => {
 
                 const rootNode = Node.createRootNode(publicKey, privateKey);
                 this.rpc = new RPC(rootNode, { port, address });
-
                 this.rpc.on('message', this.onMessage.bind(this));
 
                 if (peerAddress && peerPort) {
@@ -42,16 +41,16 @@ class Kademlia {
             })
     }
 
-    onMessage({ node, type, content, id }) {
+    onMessage({ node, type, content, messageId }) {
 
         switch (type) {
             case 'PING':
-                this.rpc.pingReply(node, id);
+                this.rpc.pingReply(node, messageId);
                 break;
         }
     }
 
-    generateKeys(dataDirectory = path.resolve(__dirname, '../../data')) {
+    static generateKeys(dataDirectory = path.resolve(__dirname, '../../data')) {
 
         return new Promise((resolve, reject) => {
 
@@ -70,8 +69,8 @@ class Kademlia {
                 }
 
                 Promise.all([
-                    writeFile(this.constructor.privateKeyPath(dataDirectory), privateKey),
-                    writeFile(this.constructor.publicKeyPath(dataDirectory), publicKey)
+                    writeFile(this.privateKeyPath(dataDirectory), privateKey),
+                    writeFile(this.publicKeyPath(dataDirectory), publicKey)
                 ]).then(() => ([ publicKey, privateKey ]));
             });
         });

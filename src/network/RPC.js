@@ -61,11 +61,10 @@ class RPC extends EventEmitter {
             return p.then(publicKey => {
 
                 node.publicKey = publicKey;
-
-
+                
                 if (!crypto.createVerify('SHA256').update(bodyJSON).verify(node.publicKey, signature)) {
 
-                    return;
+                    return this.routingTable.removeNode(node.id);
                 }
 
                 if (type.endsWith('_REPLY') && this.pendingRequests[id]) {

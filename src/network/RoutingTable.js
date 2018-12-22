@@ -35,6 +35,15 @@ class RoutingTable {
         return bucket.fetch(nodeId);
     }
 
+    removeNode(nodeId) {
+
+        const distance = this.xor(nodeId, this.rootNode.id);
+        const bucketIndex = this.getBucketIndex(distance);
+        const bucket = this.buckets[bucketIndex];
+
+        bucket.removeNode(nodeId);
+    }
+
     getBucket(bucketIndex) {
         return this.buckets[bucketIndex];
     }
