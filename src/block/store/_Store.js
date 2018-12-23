@@ -3,7 +3,7 @@
  * It is asynchronous, so it may be replaced
  * with more robust solutions that utilize the file system or a database.
  */
-class BlockStore {
+class Store {
 
     /**
      * Gets the block associated with this hash.
@@ -83,4 +83,4 @@ class BlockStore {
     }
 }
 
-module.exports = BlockStore;
+module.exports = Store;

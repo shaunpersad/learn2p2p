@@ -1,6 +1,6 @@
 const { Duplex } = require('stream');
 
-const BLOCK_STORE = Symbol('block store');
+const STORE = Symbol('block store');
 const HASHES = Symbol('hashes');
 const READ_FROM_WRITE = Symbol('read from write');
 
@@ -11,9 +11,9 @@ const READ_FROM_WRITE = Symbol('read from write');
  */
 class Decoder extends Duplex {
 
-    constructor(blockStore, streamOptions) {
+    constructor(store, streamOptions) {
         super(streamOptions);
-        this[BLOCK_STORE] = blockStore;
+        this[STORE] = store;
         this[HASHES] = null;
         this[READ_FROM_WRITE] = false;
     }
@@ -46,7 +46,7 @@ class Decoder extends Duplex {
             return this.push(null);
         }
 
-        this[BLOCK_STORE]
+        this[STORE]
             .fetch(this[HASHES].shift()) // get a hash from the queue and fetch its block
             .then(block => {
 

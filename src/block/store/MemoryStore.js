@@ -1,10 +1,10 @@
-const BlockStore = require('./BlockStore');
+const _Store = require('./_Store');
 
 /**
- * An implementation of BlockStore that uses memory.
+ * An implementation of Store that uses memory.
  * Useful for testing.
  */
-class MemoryBlockStore extends BlockStore {
+class MemoryStore extends _Store {
 
     constructor() {
         super();
@@ -107,4 +107,4 @@ class MemoryBlockStore extends BlockStore {
 
 }
 
-module.exports = MemoryBlockStore;
+module.exports = MemoryStore;

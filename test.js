@@ -1,4 +1,4 @@
-const Kademlia = require('./src/network/Kademlia');
+const Kademlia = require('./src/dht/Kademlia');
 
 const kad = new Kademlia();
 

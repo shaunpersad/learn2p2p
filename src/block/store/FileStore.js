@@ -5,15 +5,15 @@ const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 const removeFile = util.promisify(fs.unlink);
 
-const BlockStore = require('./BlockStore');
-const FileBlockStoreHashList = require('./FileBlockStoreHashList');
-const InvalidBlockError = require('./InvalidBlockError');
+const Store = require('./_Store');
+const FileStoreHashList = require('./FileStoreHashList');
+const InvalidBlockError = require('../InvalidBlockError');
 const Block = require('../Block');
 
 /**
- * An implementation of BlockStore that uses files.
+ * An implementation of Store that uses files.
  */
-class FileBlockStore extends BlockStore {
+class FileStore extends Store {
 
     constructor(dataDirectory = path.resolve(__dirname, '../../data')) {
         super();
@@ -21,7 +21,7 @@ class FileBlockStore extends BlockStore {
     }
 
     /**
-     * Unique to FileBlockStore
+     * Unique to FileStore
      * to help find a specific block.
      *
      * @param {string} hash
@@ -32,12 +32,12 @@ class FileBlockStore extends BlockStore {
     }
 
     /**
-     * Unique to the FileBlockStore,
+     * Unique to the FileStore,
      * this method creates a temporary, unique file
      * to store the list of hashes.
      *
      * @param hashListId
-     * @returns {Promise<FileBlockStoreHashList|null>}
+     * @returns {Promise<FileStoreHashList|null>}
      */
     getHashList(hashListId = null) {
 
@@ -45,7 +45,7 @@ class FileBlockStore extends BlockStore {
             return Promise.resolve(hashListId);
         }
 
-        return FileBlockStoreHashList.create(this.dataDirectory);
+        return FileStoreHashList.create(this.dataDirectory);
     }
 
     /**
@@ -168,4 +168,4 @@ class FileBlockStore extends BlockStore {
 
 }
 
-module.exports = FileBlockStore;
+module.exports = FileStore;

@@ -12,9 +12,10 @@ class Node {
 
     toJSON() {
         return {
-            publicKey: this.publicKey,
-            nodeId: this.id
-        }
+            id: this.id,
+            address: this.address,
+            port: this.port
+        };
     }
 
     static fromPublicKey(publicKey, address, port, nodeId) {

@@ -6,10 +6,11 @@ class RoutingTable {
 
         this.rootNode = rootNode;
         this.numBuckets = numBuckets;
+        this.nodesPerBucket = nodesPerBucket;
         this.buckets = [];
 
         for (let x = 0; x < numBuckets; x++) {
-            this.buckets[x] = new RoutingTableBucket(nodesPerBucket);
+            this.buckets[x] = new RoutingTableBucket(this.nodesPerBucket);
         }
     }
 
@@ -20,10 +21,10 @@ class RoutingTable {
         const bucket = this.buckets[bucketIndex];
 
         if (bucket.save(node)) {
-            return -1;
+            return null;
         }
 
-        return bucketIndex;
+        return bucket;
     }
 
     getNode(nodeId) {
@@ -33,6 +34,38 @@ class RoutingTable {
         const bucket = this.buckets[bucketIndex];
 
         return bucket.fetch(nodeId);
+    }
+
+    getClosestNodes(subjectId, amount = this.nodesPerBucket) {
+
+        const distance = this.xor(subjectId, this.rootNode.id);
+        let bucketIndex = this.getBucketIndex(distance);
+
+        const nodes = [];
+        let iteration = 0;
+
+        while (nodes.length < amount && bucketIndex >= 0 && bucketIndex < this.numBuckets) {
+
+            nodes.push(...this.buckets[bucketIndex].nodes);
+
+            if (iteration++ % 2 === 0) {
+                bucketIndex = bucketIndex - iteration;
+            } else {
+                bucketIndex = bucketIndex + iteration;
+            }
+        }
+
+        return nodes;
+    }
+
+    getOneNodePerBucket() {
+
+        return this.buckets
+            .filter(bucket => bucket.nodes.length > 0)
+            .map(bucket => {
+
+                return bucket.nodes[Math.floor(Math.random() * bucket.nodes.length)]; // gets random bucket
+            });
     }
 
     removeNode(nodeId) {

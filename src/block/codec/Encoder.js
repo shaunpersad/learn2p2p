@@ -1,7 +1,7 @@
 const { Transform } = require('stream');
 const Block = require('../Block');
 
-const BLOCK_STORE = Symbol('block store');
+const STORE = Symbol('block store');
 const MAX_LINKS_PER_BLOCK = Symbol('max links per block');
 const HASH_LIST_ID = Symbol('hash list id');
 
@@ -13,9 +13,9 @@ const HASH_LIST_ID = Symbol('hash list id');
  */
 class Encoder extends Transform {
 
-    constructor(blockStore, maxLinksPerBlock, streamOptions) {
+    constructor(store, maxLinksPerBlock, streamOptions) {
         super(streamOptions);
-        this[BLOCK_STORE] = blockStore;
+        this[STORE] = store;
         this[MAX_LINKS_PER_BLOCK] = maxLinksPerBlock;
         this[HASH_LIST_ID] = null;
     }
@@ -29,9 +29,9 @@ class Encoder extends Transform {
 
         const block = new Block(data);
 
-        return this[BLOCK_STORE]
+        return this[STORE]
             .save(block)
-            .then(hash => this[BLOCK_STORE].pushToHashList(hash, this[HASH_LIST_ID]))
+            .then(hash => this[STORE].pushToHashList(hash, this[HASH_LIST_ID]))
             .then(hashListId => (this[HASH_LIST_ID] = hashListId))
             .then(() => callback())
             .catch(callback);
@@ -57,7 +57,7 @@ class Encoder extends Transform {
 
         const link = () => {
 
-            return this[BLOCK_STORE]
+            return this[STORE]
                 .pullFromHashList(this[HASH_LIST_ID], this[MAX_LINKS_PER_BLOCK] + 1)
                 .then(([ hash, ...links ]) => {
 
@@ -66,24 +66,24 @@ class Encoder extends Transform {
                         return this.push(hash); // send the root hash
                     }
 
-                    return this[BLOCK_STORE]
+                    return this[STORE]
                         .fetch(hash)
                         .then(block => {
 
                             block.links = links;
 
-                            return this[BLOCK_STORE].update(block, hash);
+                            return this[STORE].update(block, hash);
                         })
                         .then(updatedHash => {
 
-                            return this[BLOCK_STORE].pushToHashList(updatedHash, this[HASH_LIST_ID]);
+                            return this[STORE].pushToHashList(updatedHash, this[HASH_LIST_ID]);
                         })
                         .then(() => link());
                 });
         };
 
         link()
-            .then(() => this[BLOCK_STORE].removeHashList(this[HASH_LIST_ID]))
+            .then(() => this[STORE].removeHashList(this[HASH_LIST_ID]))
             .then(() => (this[HASH_LIST_ID] = null))
             .then(() => callback())
             .catch(callback);

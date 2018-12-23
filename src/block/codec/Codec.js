@@ -1,4 +1,4 @@
-const MemoryBlockStore = require('../block-store/MemoryBlockStore');
+const MemoryStore = require('../store/MemoryStore');
 const Encoder = require('./Encoder');
 const Decoder = require('./Decoder');
 const StringStream = require('./StringStream');
@@ -12,7 +12,7 @@ class Codec {
 
         this.options = Object.assign({
             maxLinksPerBlock: 2,
-            blockStore: new MemoryBlockStore()
+            store: new MemoryStore()
         }, options);
     }
 
@@ -23,7 +23,7 @@ class Codec {
      * @returns {Encoder}
      */
     encoder(streamOptions) {
-        return new Encoder(this.options.blockStore, this.options.maxLinksPerBlock, streamOptions);
+        return new Encoder(this.options.store, this.options.maxLinksPerBlock, streamOptions);
     }
 
     /**
@@ -33,7 +33,7 @@ class Codec {
      * @returns {Decoder}
      */
     decoder(streamOptions) {
-        return new Decoder(this.options.blockStore, streamOptions);
+        return new Decoder(this.options.store, streamOptions);
     }
 
     /**
