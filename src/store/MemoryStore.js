@@ -1,4 +1,7 @@
+const { Writable } = require('stream');
 const _Store = require('./_Store');
+const InvalidBlockError = require('./InvalidBlockError');
+const Block = require('../Block');
 
 /**
  * An implementation of Store that uses memory.
@@ -34,6 +37,38 @@ class MemoryStore extends _Store {
         const hash = block.hash();
         this.blocks[hash] = block;
         return Promise.resolve(hash);
+    }
+
+    saveStream(hash, maxDataLength) {
+
+        let data = '';
+        const hashStream = Block.createHash();
+
+        new Writable({
+            write(chunk, encoding, callback) {
+                data+= chunk.toString();
+                if (data.length > maxDataLength) {
+                    return callback(new Error('Too much data.'));
+                }
+                hashStream.update(chunk);
+                callback(null, chunk);
+            },
+            final(callback) {
+
+                if (hashStream.digest('hex') !== hash) {
+                    return callback(new InvalidBlockError());
+                }
+
+                const block = new Block(Buffer.from(data));
+                block.computedHash = hash;
+                this.blocks[hash] = block;
+                callback();
+            }
+        });
+    }
+
+    exists(hash) {
+        return Promise.resolve(!!this.blocks[hash]);
     }
 
     /**

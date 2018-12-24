@@ -11,46 +11,22 @@ const Node = require('./Node');
 
 class KademliaDHT extends DHT {
 
-    constructor(dataDirectory = path.resolve(__dirname, '../../data')) {
+    constructor(publicKey, privateKey) {
 
         super();
-
-        this.privateKeyPath =  path.join(dataDirectory, 'private', 'private-key.pem');
-        this.publicKeyPath =  path.join(dataDirectory, 'public', 'public-key.pem');
-        this.rpc = null;
+        const rootNode = Node.createRootNode(publicKey, privateKey);
+        this.rpc = new RPC(rootNode, this.constructor.constants);
     }
 
     bootstrap({ port, address }, { port: peerPort, address: peerAddress }) {
 
-        return Promise.all([ readFile(this.privateKeyPath), readFile(this.publicKeyPath) ])
-            .catch(err => {
+        if (peerAddress && peerPort) {
 
-                if (err.code !== 'ENOENT') {
-                    throw err;
-                }
-
-                return this.constructor.generateKeys()
-                    .then(({ publicKey, privateKey }) => {
-
-                        return Promise.all([
-                            writeFile(this.privateKeyPath, privateKey),
-                            writeFile(this.publicKeyPath, publicKey)
-                        ]).then(() => ([ publicKey, privateKey ]));
-                    });
-            })
-            .then(([ privateKey, publicKey ]) => {
-
-                const rootNode = Node.createRootNode(publicKey, privateKey);
-                this.rpc = new RPC(rootNode, { port, address }, this.constructor.constants);
-
-                if (peerAddress && peerPort) {
-
-                    return this.rpc.issuePingRequest(new Node(peerAddress, peerPort))
-                        .then(() => this.findClosestNodes(rootNode.id))
-                        .then(() => this.refreshBuckets())
-                        .catch(() => console.log('Bootstrapped node not answering.'));
-                }
-            });
+            return this.rpc.issuePingRequest(new Node(peerAddress, peerPort))
+                .then(() => this.findClosestNodes())
+                .then(() => this.refreshBuckets())
+                .catch(console.log);
+        }
     }
 
     save(key, value) {
@@ -80,7 +56,7 @@ class KademliaDHT extends DHT {
         return Promise.all(nodesToLookup.map(node => this.findClosestNodes(node.id, 'node')));
     }
 
-    findClosestNodes(subjectId, subjectIdKind = 'node', nodeIdsGottenResponsesFor = []) {
+    findClosestNodes(subjectId = this.rpc.rootNode.id, subjectIdKind = 'node', nodeIdsGottenResponsesFor = []) {
 
         const closestNodes = this.rpc.routingTable.getClosestNodes(subjectId);
         const closestPendingNodes = closestNodes.filter(node => !nodeIdsGottenResponsesFor.includes(node.id));
@@ -149,29 +125,6 @@ class KademliaDHT extends DHT {
 
                 return this.findClosestNodes(subjectId, subjectIdKind, nodeIdsGottenResponsesFor);
             });
-    }
-
-    static generateKeys() {
-
-        return new Promise((resolve, reject) => {
-
-            if (!crypto.generateKeyPair) {
-                return reject(new Error('Generating key pairs automatically is only available in Node >= v10.12. Please generate them youself in /data/keys as public.pem and private.pem.'));
-            }
-
-            crypto.generateKeyPair('rsa', {
-                modulusLength: 2048,
-                publicKeyEncoding: { type: 'spki', format: 'pem' },
-                privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-            }, (err, publicKey, privateKey) => {
-
-                if (err) {
-                    return reject(err);
-                }
-
-                resolve({ publicKey, privateKey });
-            });
-        });
     }
 
     static get constants() {

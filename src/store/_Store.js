@@ -35,6 +35,14 @@ class Store {
         throw new Error('Please override the save(block) method.');
     }
 
+    saveStream(hash, maxDataLength) {
+        throw new Error('Please override the saveStream(hash, maxDataLength) method.');
+    }
+
+    exists(hash) {
+        throw new Error('Please override the exists(hash) method.');
+    }
+
     /**
      * Updates a block and removes its old entry.
      *

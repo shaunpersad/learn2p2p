@@ -1,13 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
+const { Transform } = require('stream');
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 const removeFile = util.promisify(fs.unlink);
+const exists = util.promisify(fs.access);
 
 const Store = require('./_Store');
 const FileStoreHashList = require('./FileStoreHashList');
-const InvalidBlockError = require('../InvalidBlockError');
+const InvalidBlockError = require('./InvalidBlockError');
 const Block = require('../Block');
 
 /**
@@ -67,6 +69,13 @@ class FileStore extends Store {
                     throw new InvalidBlockError();
                 }
                 return block;
+            })
+            .catch(err => {
+
+                if (err.code !== 'ENOENT') {
+                    throw err;
+                }
+                return null;
             });
     }
 
@@ -89,6 +98,45 @@ class FileStore extends Store {
                 }
             })
             .then(() => hash);
+    }
+
+    saveStream(hash, maxDataLength) {
+
+        let length = 0;
+        const hashStream = Block.createHash();
+
+        const transform = new Transform({
+            transform(chunk, encoding, callback) {
+
+                length+= chunk.length;
+                if (length > maxDataLength) {
+                    return callback(new Error('Too much data.'));
+                }
+                hashStream.update(chunk);
+                callback(null, chunk);
+            },
+            flush(callback) {
+
+                if (hashStream.digest('hex') !== hash) {
+                    return callback(new InvalidBlockError());
+                }
+                callback();
+            }
+        });
+
+        const write = fs.createWriteStream(this.blockPath(hash), { flags: 'wx' }).once('error', function(err) {
+
+            if (err.code !== 'EEXIST') {
+                this.emit('error', err);
+            }
+        });
+
+        return transform.pipe(write);
+    }
+
+    exists(hash) {
+
+        return exists(this.blockPath(hash)).then(() => true).catch(() => false);
     }
 
     /**

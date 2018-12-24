@@ -13,7 +13,7 @@ class Block {
      * @param {[]} [links]
      */
     constructor(data, links = []) {
-        this.data = data || '';
+        this.data = data;
         this.links = links || [];
         this.computedHash = '';
     }
@@ -30,7 +30,12 @@ class Block {
     }
 
     hash() {
-        return this.computedHash = crypto.createHash('sha256').update(this.toString()).digest('hex');
+        return this.computedHash = this.constructor.createHash().update(this.toString()).digest('hex');
+    }
+
+    static createHash() {
+
+        return crypto.createHash('sha256');
     }
 
     static fromString(contents) {

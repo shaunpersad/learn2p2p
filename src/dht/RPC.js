@@ -6,7 +6,7 @@ const Node = require('./Node');
 
 class RPC {
 
-    constructor(rootNode, { port, address }, { concurrency, numBuckets, nodesPerBucket }) {
+    constructor(rootNode, { concurrency, numBuckets, nodesPerBucket }) {
 
         this.rootNode = rootNode;
         this.concurrency = concurrency;
@@ -14,11 +14,18 @@ class RPC {
         this.server = dgram.createSocket('udp4');
         this.server.on('error', this.onError.bind(this));
         this.server.on('message', this.receiveMessage.bind(this));
-        this.server.on('listening', () => console.log('Listening on port', port));
-        this.server.bind(port, address);
 
         this.routingTable = new RoutingTable(this.rootNode, numBuckets, nodesPerBucket);
         this.pendingRequests = {};
+    }
+
+    start(port, address) {
+
+        return new Promise(resolve => {
+
+            this.server.on('listening', () => resolve());
+            this.server.bind(port, address);
+        });
     }
 
     onError(err) {
