@@ -7,15 +7,15 @@ const writeFile = util.promisify(fs.writeFile);
 const removeFile = util.promisify(fs.unlink);
 const exists = util.promisify(fs.access);
 
-const Store = require('./_Store');
-const FileStoreHashList = require('./FileStoreHashList');
-const InvalidBlockError = require('./InvalidBlockError');
-const Block = require('../Block');
+const Store = require('../../BlockStorage');
+const FileStoreHashList = require('./components/FilesystemHashList');
+const InvalidBlockError = require('../../InvalidBlockError');
+const Block = require('../../../Block');
 
 /**
  * An implementation of Store that uses files.
  */
-class FileStore extends Store {
+class FilesystemBlockStorage extends Store {
 
     constructor(dataDirectory = path.resolve(__dirname, '../../data')) {
         super();
@@ -216,4 +216,4 @@ class FileStore extends Store {
 
 }
 
-module.exports = FileStore;
+module.exports = FilesystemBlockStorage;

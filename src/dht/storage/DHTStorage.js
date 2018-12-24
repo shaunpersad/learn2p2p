@@ -13,4 +13,15 @@ class DHTStorage {
 
     }
 
+    static get EXISTS() {
+        return 0;
+    }
+
+    static get WILL_NOT_STORE() {
+        return -1;
+    }
+
+    static get STORED() {
+        return 1;
+    }
 }

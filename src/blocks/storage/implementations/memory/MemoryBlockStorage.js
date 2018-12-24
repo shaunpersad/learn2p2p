@@ -1,13 +1,13 @@
 const { Writable } = require('stream');
-const _Store = require('./_Store');
-const InvalidBlockError = require('./InvalidBlockError');
-const Block = require('../Block');
+const _Store = require('../../BlockStorage');
+const InvalidBlockError = require('../../InvalidBlockError');
+const Block = require('../../../Block');
 
 /**
  * An implementation of Store that uses memory.
  * Useful for testing.
  */
-class MemoryStore extends _Store {
+class MemoryBlockStorage extends _Store {
 
     constructor() {
         super();
@@ -142,4 +142,4 @@ class MemoryStore extends _Store {
 
 }
 
-module.exports = MemoryStore;
+module.exports = MemoryBlockStorage;

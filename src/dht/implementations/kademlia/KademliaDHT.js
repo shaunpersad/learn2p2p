@@ -1,32 +1,44 @@
-const fs = require('fs');
-const crypto = require('crypto');
-const path = require('path');
-const util = require('util');
-const readFile = util.promisify(fs.readFile);
-const writeFile = util.promisify(fs.writeFile);
-
-const DHT = require('./_DHT');
-const RPC = require('./RPC');
-const Node = require('./Node');
+const DHT = require('../../DHT');
+const RPC = require('./components/RPC');
+const Node = require('./components/Node');
 
 class KademliaDHT extends DHT {
 
-    constructor(publicKey, privateKey) {
+    static get constants() {
+
+        const alpha = 5;
+        const keySpace = 256;
+        const k = 20;
+
+        return {
+            concurrency: alpha,
+            numBuckets: keySpace,
+            nodesPerBucket: k
+        }
+    }
+
+    constructor(publicKey, privateKey, dhtStorage) {
 
         super();
+
         const rootNode = Node.createRootNode(publicKey, privateKey);
-        this.rpc = new RPC(rootNode, this.constructor.constants);
+        this.rpc = new RPC(rootNode, dhtStorage, this.constructor.constants);
     }
 
     bootstrap({ port, address }, { port: peerPort, address: peerAddress }) {
 
-        if (peerAddress && peerPort) {
+        this.rpc.start(port, address).then(() => {
 
-            return this.rpc.issuePingRequest(new Node(peerAddress, peerPort))
-                .then(() => this.findClosestNodes())
-                .then(() => this.refreshBuckets())
-                .catch(console.log);
-        }
+            if (peerAddress && peerPort) {
+
+                const peerNode = new Node(peerAddress, peerPort);
+
+                return this.rpc.issuePingRequest(peerNode)
+                    .then(() => this.findClosestNodes())
+                    .then(() => this.refreshBuckets())
+                    .catch(console.log);
+            }
+        });
     }
 
     save(key, value) {
@@ -34,12 +46,20 @@ class KademliaDHT extends DHT {
         return this.findClosestNodes(key, 'node').then(nodes => {
 
             const result = { success: 0, fail: 0 };
+            const { WILL_NOT_STORE } = this.rpc.dhtStorage.constructor;
 
             return Promise.all(nodes.map(node => {
 
                 return this.rpc.issueStoreRequest(node, key, value)
-                    .then(() => result.success++)
-                    .catch(() => result.fail++);
+                    .catch(err => {
+
+                        this.rpc.routingTable.removeNode(node.id);
+                        return { content: WILL_NOT_STORE };
+                    })
+                    .then(({ content: status }) => {
+
+                        status === this.rpc.dhtStorage.constructor.WILL_NOT_STORE ? result.fail++ : result.success++;
+                    });
 
             })).then(() => result);
         });
@@ -125,15 +145,6 @@ class KademliaDHT extends DHT {
 
                 return this.findClosestNodes(subjectId, subjectIdKind, nodeIdsGottenResponsesFor);
             });
-    }
-
-    static get constants() {
-
-        return {
-            concurrency: 5,
-            numBuckets: 256,
-            nodesPerBucket: 20
-        }
     }
 }
 

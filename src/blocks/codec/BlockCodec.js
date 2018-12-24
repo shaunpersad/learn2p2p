@@ -1,12 +1,12 @@
-const MemoryStore = require('../store/MemoryStore');
-const Encoder = require('./Encoder');
-const Decoder = require('./Decoder');
-const StringStream = require('./StringStream');
+const MemoryStore = require('../storage/implementations/memory/MemoryBlockStorage');
+const Encoder = require('./components/DataEncoder');
+const Decoder = require('./components/HashDecoder');
+const StringStream = require('./components/StringStream');
 
 /**
  * A simple class to unify encoder and decoder stream creation under the same settings.
  */
-class Codec {
+class BlockCodec {
 
     constructor(options = {}) {
 
@@ -48,4 +48,4 @@ class Codec {
     }
 }
 
-module.exports = Codec;
+module.exports = BlockCodec;

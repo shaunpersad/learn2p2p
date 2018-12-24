@@ -9,7 +9,7 @@ const READ_FROM_WRITE = Symbol('read from write');
  * to a stream of those contents (or blocks representing them).
  * This output stream can then be used to reassemble the file.
  */
-class Decoder extends Duplex {
+class HashDecoder extends Duplex {
 
     constructor(store, streamOptions) {
         super(streamOptions);
@@ -62,5 +62,5 @@ class Decoder extends Duplex {
 
 }
 
-module.exports = Decoder;
+module.exports = HashDecoder;
 

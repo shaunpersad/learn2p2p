@@ -17,7 +17,7 @@ const randomBytes = util.promisify(crypto.randomBytes);
  * Using these two aspects, we can successfully treat this file as a stack
  * with minimal overhead.
  */
-class FileStoreHashList {
+class FilesystemHashList {
 
     constructor(fd, filePath) {
         this.fd = fd;
@@ -30,7 +30,7 @@ class FileStoreHashList {
      * Pushes a hash entry onto the end of the file.
      *
      * @param {string} hash
-     * @returns {Promise<FileStoreHashList>}
+     * @returns {Promise<FilesystemHashList>}
      */
     push(hash) {
 
@@ -84,7 +84,7 @@ class FileStoreHashList {
      * Creates a unique temporary file to act as the hash list.
      *
      * @param {string} dataDirectory
-     * @returns {Promise<FileStoreHashList>}
+     * @returns {Promise<FilesystemHashList>}
      */
     static create(dataDirectory) {
 
@@ -107,4 +107,4 @@ class FileStoreHashList {
     }
 }
 
-module.exports = FileStoreHashList;
+module.exports = FilesystemHashList;

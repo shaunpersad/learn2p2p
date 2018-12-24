@@ -4,11 +4,13 @@ const crypto = require('crypto');
 const RoutingTable = require('./RoutingTable');
 const Node = require('./Node');
 
+
 class RPC {
 
-    constructor(rootNode, { concurrency, numBuckets, nodesPerBucket }) {
+    constructor(rootNode, dhtStorage, { concurrency, numBuckets, nodesPerBucket }) {
 
         this.rootNode = rootNode;
+        this.dhtStorage = dhtStorage;
         this.concurrency = concurrency;
 
         this.server = dgram.createSocket('udp4');
@@ -216,6 +218,19 @@ class RPC {
 
     handleStoreRequest(fromNode, key, value, messageId) {
 
+        const { EXISTS, WILL_NOT_STORE, STORED } = this.dhtStorage.constructor;
+
+        return this.dhtStorage.save(key, value)
+            .then(stored => {
+
+                const content = stored ? STORED : EXISTS;
+
+                return this.reply(fromNode, messageId, 'STORE', content);
+            })
+            .catch(err => {
+
+                return this.reply(fromNode, messageId, 'STORE', WILL_NOT_STORE);
+            });
     }
 
     issueFindValueRequest(toNode, key) {
@@ -225,6 +240,21 @@ class RPC {
 
     handleFindValueRequest(fromNode, key, messageId) {
 
+        return this.dhtStorage.fetch(key)
+            .catch(err => null)
+            .then(value => {
+
+                if (!value) {
+                    const nodes = this.routingTable.getClosestNodes(key);
+                    return { type: 'nodes', payload: nodes };
+                }
+
+                return { type: 'value', payload: value };
+            })
+            .then(content => {
+
+                return this.reply(fromNode, messageId, 'FIND_VALUE', content);
+            });
     }
 
     reply(toNode, messageId, type, content) {

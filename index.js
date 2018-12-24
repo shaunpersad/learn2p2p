@@ -1,5 +1,5 @@
-const Codec = require('./src/codec/Codec');
-const Store = require('./src/store/FileStore');
+const Codec = require('./src/blocks/codec/BlockCodec');
+const Store = require('./src/blocks/storage/implementations/filesystem/FilesystemBlockStorage');
 
 const highWaterMark = 65; // the maximum size of each block's data
 const maxLinksPerBlock = 2; // the maximum number of links a block can have

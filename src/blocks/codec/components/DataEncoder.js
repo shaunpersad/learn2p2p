@@ -1,5 +1,5 @@
 const { Transform } = require('stream');
-const Block = require('../Block');
+const Block = require('../../Block');
 
 const STORE = Symbol('block store');
 const MAX_LINKS_PER_BLOCK = Symbol('max links per block');
@@ -11,7 +11,7 @@ const HASH_LIST_ID = Symbol('hash list id');
  * It handles the creation of the underlying blocks (and their links to other blocks),
  * where each block represents a chunk of the contents.
  */
-class Encoder extends Transform {
+class DataEncoder extends Transform {
 
     constructor(store, maxLinksPerBlock, streamOptions) {
         super(streamOptions);
@@ -90,5 +90,5 @@ class Encoder extends Transform {
     }
 }
 
-module.exports = Encoder;
+module.exports = DataEncoder;
 

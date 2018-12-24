@@ -14,17 +14,6 @@ class Store {
     fetch(hash) {
         throw new Error('Please override the fetch(hash) method.');
     }
-
-    /**
-     * Removes the block associated with this hash.
-     *
-     * @param hash
-     * @returns {Promise<Block>}
-     */
-    fetchAndForget(hash) {
-        throw new Error('Please override the fetchAndForget(hash) method.');
-    }
-
     /**
      * Saves a block by its hash.
      *
