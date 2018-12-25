@@ -1,6 +1,7 @@
-const { Writable } = require('stream');
+const { Readable, Writable } = require('stream');
 const _Store = require('../../BlockStorage');
-const InvalidBlockError = require('../../InvalidBlockError');
+const InvalidBlockError = require('../../../errors/InvalidBlockError');
+const BlockNotFoundError = require('../../../errors/BlockNotFoundError');
 const Block = require('../../../Block');
 
 /**
@@ -23,7 +24,25 @@ class MemoryBlockStorage extends _Store {
      */
     fetch(hash) {
 
-        return Promise.resolve(this.blocks[hash]);
+        return this.blocks[hash] ? Promise.resolve(this.blocks[hash]) : Promise.reject(new BlockNotFoundError());
+    }
+
+    fetchStream(hash) {
+
+        let iterator = 0;
+        const data = this.blocks[hash] ? JSON.stringify(this.blocks[hash]) : null;
+
+        return new Readable({
+            read(size) {
+
+                if (!data) {
+                    return this.emit('error', new BlockNotFoundError());
+                }
+                const chunk = data.substring(iterator, size);
+                iterator+= size;
+                this.push(chunk || null);
+            }
+        });
     }
 
     /**
@@ -39,28 +58,21 @@ class MemoryBlockStorage extends _Store {
         return Promise.resolve(hash);
     }
 
-    saveStream(hash, maxDataLength) {
+    saveStream(hash) {
 
         let data = '';
-        const hashStream = Block.createHash();
 
         new Writable({
             write(chunk, encoding, callback) {
                 data+= chunk.toString();
-                if (data.length > maxDataLength) {
-                    return callback(new Error('Too much data.'));
-                }
-                hashStream.update(chunk);
-                callback(null, chunk);
+                callback();
             },
             final(callback) {
 
-                if (hashStream.digest('hex') !== hash) {
+                const block = new Block(Buffer.from(data));
+                if (block.hash() !== hash) {
                     return callback(new InvalidBlockError());
                 }
-
-                const block = new Block(Buffer.from(data));
-                block.computedHash = hash;
                 this.blocks[hash] = block;
                 callback();
             }

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
-const { Transform } = require('stream');
+const { Readable, Transform, Writable } = require('stream');
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 const removeFile = util.promisify(fs.unlink);
@@ -9,7 +9,11 @@ const exists = util.promisify(fs.access);
 
 const Store = require('../../BlockStorage');
 const FileStoreHashList = require('./components/FilesystemHashList');
-const InvalidBlockError = require('../../InvalidBlockError');
+const InvalidBlockError = require('../../../errors/InvalidBlockError');
+const BlockNotFoundError =require('../../../errors/BlockNotFoundError');
+const DataValidator = require('../../../codec/components/DataValidator');
+const StringStream = require('../../../codec/components/StringStream');
+
 const Block = require('../../../Block');
 
 /**
@@ -61,22 +65,37 @@ class FilesystemBlockStorage extends Store {
      */
     fetch(hash) {
 
-        return readFile(this.blockPath(hash), {encoding: 'utf-8'})
-            .then(contents => {
+        return new Promise((resolve, reject) => {
 
-                const block = Block.fromString(contents);
-                if (block.hash() !== hash) {
-                    throw new InvalidBlockError();
-                }
-                return block;
-            })
-            .catch(err => {
+            let contents = '';
+            this.fetchStream(hash)
+                .on('error', reject)
+                .on('data', data => {
+                    contents+= data;
+                })
+                .on('end', () => {
 
-                if (err.code !== 'ENOENT') {
-                    throw err;
+                    const block = Block.fromString(contents);
+                    if (block.hash() !== hash) {
+                        return reject(new InvalidBlockError());
+                    }
+                    resolve(block);
+                });
+        });
+    }
+
+    fetchStream(hash) {
+
+        try {
+            return fs.createReadStream(this.blockPath(hash), { encoding: 'utf-8' });
+        } catch (err) {
+            return new Readable({
+                read() {
+
+                    this.emit('error', err.code === 'ENOENT' ? new BlockNotFoundError() : err);
                 }
-                return null;
             });
+        }
     }
 
     /**
@@ -91,47 +110,31 @@ class FilesystemBlockStorage extends Store {
 
         const hash = block.hash();
         const contents = block.toString();
-        return writeFile(this.blockPath(hash), contents, { flag: 'wx' }) // write exclusive
-            .catch(err => {
-                if (err.code !== 'EEXIST') {
-                    throw err;
-                }
-            })
-            .then(() => hash);
+        const read = new StringStream(contents, contents.length);
+
+        return new Promise((resolve, reject) => {
+
+            read.on('error', reject)
+                .pipe(this.saveStream(hash))
+                .on('error', reject)
+                .on('end', () => resolve(hash));
+        });
     }
 
-    saveStream(hash, maxDataLength) {
+    saveStream(hash) {
 
-        let length = 0;
-        const hashStream = Block.createHash();
+        try {
 
-        const transform = new Transform({
-            transform(chunk, encoding, callback) {
+            return fs.createWriteStream(this.blockPath(hash), { flags: 'wx' });
 
-                length+= chunk.length;
-                if (length > maxDataLength) {
-                    return callback(new Error('Too much data.'));
+        } catch (err) {
+
+            return new Writable({
+                write(chunk, encoding, callback) {
+                    callback(err.code === 'EEXIST' ? null : err);
                 }
-                hashStream.update(chunk);
-                callback(null, chunk);
-            },
-            flush(callback) {
-
-                if (hashStream.digest('hex') !== hash) {
-                    return callback(new InvalidBlockError());
-                }
-                callback();
-            }
-        });
-
-        const write = fs.createWriteStream(this.blockPath(hash), { flags: 'wx' }).once('error', function(err) {
-
-            if (err.code !== 'EEXIST') {
-                this.emit('error', err);
-            }
-        });
-
-        return transform.pipe(write);
+            });
+        }
     }
 
     exists(hash) {

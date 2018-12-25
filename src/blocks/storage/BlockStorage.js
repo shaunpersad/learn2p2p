@@ -14,6 +14,10 @@ class Store {
     fetch(hash) {
         throw new Error('Please override the fetch(hash) method.');
     }
+
+    fetchStream(hash) {
+        throw new Error('Please override the fetchStream(hash) method.');
+    }
     /**
      * Saves a block by its hash.
      *
