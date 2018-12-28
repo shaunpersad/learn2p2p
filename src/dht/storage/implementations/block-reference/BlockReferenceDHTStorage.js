@@ -1,7 +1,6 @@
 const { URL } = require('url');
 const http = require('http');
 const https = require('https');
-const fs = require('fs');
 const DHTStorage = require('../../DHTStorage');
 const DataValidator = require('../../../../blocks/codec/components/DataValidator');
 const BlockNotFoundError = require('../../../../blocks/errors/BlockNotFoundError');

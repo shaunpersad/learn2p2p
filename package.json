@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/shaunpersad/find/issues"
   },
-  "homepage": "https://github.com/shaunpersad/find#readme"
+  "homepage": "https://github.com/shaunpersad/find#readme",
+  "dependencies": {
+    "b64": "^4.1.2"
+  }
 }
