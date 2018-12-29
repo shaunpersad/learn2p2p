@@ -17,12 +17,12 @@ class KademliaDHT extends DHT {
         }
     }
 
-    constructor(publicKey, privateKey, dhtStorage) {
+    constructor(kvStore, publicKey, privateKey) {
 
-        super();
+        super(kvStore);
 
         const rootNode = Node.createRootNode(publicKey, privateKey);
-        this.rpc = new RPC(rootNode, dhtStorage, this.constructor.constants);
+        this.rpc = new RPC(rootNode, kvStore, this.constructor.constants);
     }
 
     bootstrap({ port, address }, { port: peerPort, address: peerAddress }) {

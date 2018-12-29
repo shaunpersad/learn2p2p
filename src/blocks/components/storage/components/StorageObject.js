@@ -1,3 +1,4 @@
+const { Readable, Writable } = require('stream');
 
 class StorageObject {
 
@@ -8,10 +9,12 @@ class StorageObject {
     createWriteStream(start = 0) {
 
         this.length = start;
+        return new Writable();
     }
 
     createReadStream(start = 0, end = this.length) {
 
+        return new Readable();
     }
 
     saveAs(hash) {

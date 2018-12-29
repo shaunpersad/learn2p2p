@@ -1,16 +1,13 @@
 
-class DHTStorage {
-
-    constructor(maxDataLength) {
-        this.maxDataLength = maxDataLength;
-    }
+class DHTKVStore {
 
     save(key, value) {
 
+        return Promise.resolve(false);
     }
 
     fetch(key) {
-
+        return Promise.resolve(null);
     }
 
     static get EXISTS() {
@@ -25,3 +22,5 @@ class DHTStorage {
         return 1;
     }
 }
+
+module.exports = DHTKVStore;

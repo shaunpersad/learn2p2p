@@ -1,7 +1,12 @@
+const { Readable } = require('stream');
 const Base64 = require('b64');
-const StringStream = require('./components/StringStream');
+
 const BlockStitcher = require('./components/BlockStitcher');
-const Block = require('../Block');
+
+const BlockNotFoundError = require('../errors/BlockNotFoundError');
+
+const Block = require('../../Block');
+
 
 class BlockCodec {
 
@@ -13,14 +18,10 @@ class BlockCodec {
 
     createBlocks(tempFile) {
 
-        console.log('creating blocks');
-
         return Promise.resolve().then(() => {
 
             let numLinks = 0;
             let length = tempFile.length;
-
-            console.log('before', { length, numLinks });
 
             while (numLinks < Block.MAX_NUM_LINKS && (length - Block.SIZE) > 0) {
 
@@ -28,21 +29,18 @@ class BlockCodec {
                 numLinks++;
             }
 
-            console.log('after', { length, numLinks });
-
-
             if (!numLinks) {
 
-                const hashStream = Block.createHashStream();
+                const extractMetadata = Block.extractMetadata();
 
                 return new Promise((resolve, reject) => {
 
                     tempFile.createReadStream()
                         .on('error', reject)
-                        .pipe(hashStream)
+                        .pipe(extractMetadata)
                         .on('error', reject)
                         .on('data', data => {})
-                        .on('end', () => tempFile.saveAs(hashStream[Block.HASH]).then(resolve));
+                        .on('end', () => tempFile.saveAs(extractMetadata[Block.HASH]).then(resolve));
                 });
             }
 
@@ -53,17 +51,17 @@ class BlockCodec {
 
                         return new Promise((resolve, reject) => {
 
-                            const hashStream = Block.createHashStream();
+                            const extractMetadata = Block.extractMetadata();
                             const start = length + (i * Block.SIZE);
                             const end = start + Block.SIZE;
 
                             tempFile.createReadStream(start, end)
                                 .on('error', reject)
-                                .pipe(hashStream)
+                                .pipe(extractMetadata)
                                 .on('error', reject)
                                 .pipe(block.createWriteStream())
                                 .on('error', reject)
-                                .on('finish', () => block.saveAs(hashStream[Block.HASH]).then(resolve));
+                                .on('finish', () => block.saveAs(extractMetadata[Block.HASH]).then(resolve));
                         });
                     });
 
@@ -132,29 +130,26 @@ class BlockCodec {
 
     upload(hash) {
 
-        return this.dht.dhtStorage.fetch(hash)
+        return this.dht.kvStore.fetch(hash)
             .then(value => this.dht.save(hash, value))
             .then(() => {
 
                 return new Promise((resolve, reject) => {
 
-                    const hashStream = Block.createHashStream();
+                    const extractMetadata = Block.extractMetadata();
 
                     this.storage.createReadStreamAtHash(hash)
                         .on('error', reject)
-                        .pipe(hashStream)
+                        .pipe(extractMetadata)
                         .on('error', reject)
                         .on('data', () => {})
-                        .on('end', () => {
-
-                            resolve(hashStream[Block.LINKS]);
-                        });
+                        .on('end', () => resolve(extractMetadata[Block.LINKS]));
                 });
             })
             .then(links => {
 
                 if (!links.length) {
-                    return;
+                    return hash;
                 }
 
                 return Promise.all(links.map(hash => this.upload(hash)));
@@ -163,47 +158,53 @@ class BlockCodec {
 
     download(hash) {
 
-        try {
+        return new Promise((resolve, reject) => {
 
-            const hashStream = Block.createHashStream();
+            const extractMetadata = Block.extractMetadata();
 
-            return new Promise((resolve, reject) => {
-
-                this.storage.createReadStreamAtHash(hash)
-                    .on('error', reject)
-                    .pipe(hashStream)
-                    .on('error', reject)
-                    .on('data', () => {})
-                    .on('end', () => {
-
-                        resolve(hashStream[Block.LINKS]);
-                    });
-            }).then(links => {
+            this.storage.createReadStreamAtHash(hash)
+                .on('error', reject)
+                .pipe(extractMetadata)
+                .on('error', reject)
+                .on('data', () => {})
+                .on('end', () => resolve(extractMetadata[Block.LINKS]));
+        })
+            .then(links => {
 
                 if (!links.length) {
-                    return;
+                    return hash;
                 }
 
                 return Promise.all(links.map(hash => this.download(hash)));
+            })
+            .catch(err => {
+
+                if (!(err instanceof BlockNotFoundError)) {
+                    throw err;
+                }
+
+                return this.dht.fetch(hash)
+                    .then(value => this.dht.kvStore.save(hash, value))
+                    .then(() => this.download(hash));
             });
-
-        } catch(err) {
-
-            return this.dht.fetch(hash)
-                .then(value => this.dht.dhtStorage.save(hash, value))
-                .then(() => this.download(hash));
-        }
     }
 
     /**
      *
      * @param {string} content
-     * @param {{}|null} [streamSettings]
-     * @returns {StringStream}
+     * @returns {Readable}
      */
-    static createStringStream(content, streamSettings) {
+    static createStringStream(content) {
 
-        return new StringStream(content, streamSettings);
+        return new Readable({
+            read(size) {
+                this.push(content.substring(0, size));
+
+                if (!(content = content.substring(size))) {
+                    this.push(null);
+                }
+            }
+        });
     }
 }
 

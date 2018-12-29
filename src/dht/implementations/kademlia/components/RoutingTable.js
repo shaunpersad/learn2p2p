@@ -16,7 +16,7 @@ class RoutingTable {
 
     addCandidate(node) {
 
-        const distance = this.xor(node.id, this.rootNode.id);
+        const distance = this.constructor.xor(node.id, this.rootNode.id);
         const bucketIndex = this.getBucketIndex(distance);
         const bucket = this.buckets[bucketIndex];
 
@@ -29,7 +29,7 @@ class RoutingTable {
 
     getNode(nodeId) {
 
-        const distance = this.xor(nodeId, this.rootNode.id);
+        const distance = this.constructor.xor(nodeId, this.rootNode.id);
         const bucketIndex = this.getBucketIndex(distance);
         const bucket = this.buckets[bucketIndex];
 
@@ -38,7 +38,7 @@ class RoutingTable {
 
     getClosestNodes(subjectId, amount = this.nodesPerBucket) {
 
-        const distance = this.xor(subjectId, this.rootNode.id);
+        const distance = this.constructor.xor(subjectId, this.rootNode.id);
         let bucketIndex = this.getBucketIndex(distance);
 
         const nodes = [];
@@ -70,7 +70,7 @@ class RoutingTable {
 
     removeNode(nodeId) {
 
-        const distance = this.xor(nodeId, this.rootNode.id);
+        const distance = this.constructor.xor(nodeId, this.rootNode.id);
         const bucketIndex = this.getBucketIndex(distance);
         const bucket = this.buckets[bucketIndex];
 
@@ -80,20 +80,7 @@ class RoutingTable {
     getBucket(bucketIndex) {
         return this.buckets[bucketIndex];
     }
-
-    xor(nodeId1, nodeId2) {
-
-        const buffer1 = Buffer.from(nodeId1);
-        const buffer2 = Buffer.from(nodeId2);
-        const result = [];
-
-        for (let i = 0; i < buffer1; i++) {
-            result.push(buffer1[i] ^ buffer2[i]);
-        }
-
-        return Buffer.from(result);
-    }
-
+    
     getBucketIndex(distance) {
 
         let commonPrefixCount = 0;
@@ -110,8 +97,17 @@ class RoutingTable {
         return this.numBuckets - commonPrefixCount;
     }
 
-    static getBit(number, bitPosition) {
-        return (number & (1 << bitPosition)) === 0 ? 0 : 1;
+    static xor(nodeId1, nodeId2) {
+
+        const buffer1 = Buffer.from(nodeId1);
+        const buffer2 = Buffer.from(nodeId2);
+        const result = [];
+
+        for (let i = 0; i < buffer1; i++) {
+            result.push(buffer1[i] ^ buffer2[i]);
+        }
+
+        return Buffer.from(result);
     }
 }
 

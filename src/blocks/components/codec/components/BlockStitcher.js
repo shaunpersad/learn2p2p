@@ -12,7 +12,9 @@ const STATE_LINKS = Symbol('links state');
 class BlockStitcher extends Readable {
 
     constructor(hash, storage, streamOptions) {
+
         super(streamOptions);
+
         this[CURRENT_HASH] = hash;
         this[HASHES] = [];
         this[STORAGE] = storage;
@@ -47,10 +49,6 @@ class BlockStitcher extends Readable {
                     switch(this[STATE]) {
                         case STATE_DATA:
                             if (c === '\n') {
-                                if (!this.push(value)) {
-                                    this[SOURCE].pause();
-                                }
-                                value = '';
                                 this[STATE] = STATE_LINKS;
                             } else {
                                 value+= c;

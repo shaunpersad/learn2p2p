@@ -1,5 +1,5 @@
-const Codec = require('./src/blocks/codec/BlockCodec');
-const Storage = require('./src/blocks/storage/implementations/filesystem/FilesystemStorage');
+const Codec = require('./src/blocks/components/codec/BlockCodec');
+const Storage = require('./src/blocks/components/storage/implementations/filesystem/FilesystemStorage');
 
 const storage = new Storage(); // a place to store generated blocks
 const codec = new Codec(storage); // performs data <=> hash conversions

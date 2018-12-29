@@ -58,6 +58,11 @@ class MemoryStorage extends Storage {
             }
         });
     }
+
+    exists(hash) {
+
+        return Promise.resolve(this.data[hash] !== undefined);
+    }
 }
 
 module.exports = MemoryStorage;

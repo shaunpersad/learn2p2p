@@ -22,7 +22,7 @@ class WritableHash extends Writable {
 
     _write(chunk, encoding, callback) {
 
-        this[SOURCE].write(chunk, encoding, callback);
+        this[SOURCE].write(chunk, encoding, () => callback());
     }
 
     _final(callback) {

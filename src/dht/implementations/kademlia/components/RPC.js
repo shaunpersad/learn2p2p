@@ -7,10 +7,10 @@ const Node = require('./Node');
 
 class RPC {
 
-    constructor(rootNode, dhtStorage, { concurrency, numBuckets, nodesPerBucket }) {
+    constructor(rootNode, kvStore, { concurrency, numBuckets, nodesPerBucket }) {
 
         this.rootNode = rootNode;
-        this.dhtStorage = dhtStorage;
+        this.kvStore = kvStore;
         this.concurrency = concurrency;
 
         this.server = dgram.createSocket('udp4');
@@ -218,9 +218,9 @@ class RPC {
 
     handleStoreRequest(fromNode, key, value, messageId) {
 
-        const { EXISTS, WILL_NOT_STORE, STORED } = this.dhtStorage.constructor;
+        const { EXISTS, WILL_NOT_STORE, STORED } = this.kvStore.constructor;
 
-        return this.dhtStorage.save(key, value)
+        return this.kvStore.save(key, value)
             .then(stored => {
 
                 const content = stored ? STORED : EXISTS;
@@ -240,7 +240,7 @@ class RPC {
 
     handleFindValueRequest(fromNode, key, messageId) {
 
-        return this.dhtStorage.fetch(key)
+        return this.kvStore.fetch(key)
             .catch(err => null)
             .then(value => {
 

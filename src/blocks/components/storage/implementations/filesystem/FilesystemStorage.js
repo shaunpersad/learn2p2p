@@ -3,6 +3,7 @@ const path = require('path');
 const util = require('util');
 const crypto = require('crypto');
 const writeFile = util.promisify(fs.writeFile);
+const access = util.promisify(fs.access);
 const randomBytes = util.promisify(crypto.randomBytes);
 
 const Storage = require('../../Storage');
@@ -13,7 +14,7 @@ const WritableHash = require('./components/WritableHash');
 
 class FilesystemStorage extends Storage {
 
-    constructor(dataDirectory = path.resolve(__dirname, '../../../../../data')) {
+    constructor(dataDirectory = path.resolve(__dirname, '../../../../../../data')) {
         super();
         this.dataDirectory = dataDirectory;
     }
@@ -61,7 +62,19 @@ class FilesystemStorage extends Storage {
                         return this.createTempFile();
                     });
             });
+    }
 
+    exists(hash) {
+
+        return access(this.createBlockPath(hash), (fs.constants || fs).F_OK)
+            .then(() => true)
+            .catch(err => {
+
+                if (err.code === 'ENOENT') {
+                    return false;
+                }
+                throw err;
+            });
     }
 }
 

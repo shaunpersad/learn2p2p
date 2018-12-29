@@ -1,5 +1,9 @@
 class DHT {
 
+    constructor(kvStore) {
+        this.kvStore = kvStore;
+    }
+
     bootstrap(yourAddress, peerAddress = null) {
         throw new Error('Please override the bootstrap(yourAddress, peerAddress = null) method.');
     }

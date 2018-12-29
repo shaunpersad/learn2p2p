@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { Transform } = require('stream');
 
-const InvalidBlockError = require('./errors/InvalidBlockError');
+const InvalidBlockError = require('./components/errors/InvalidBlockError');
 
 const HASH = Symbol('hash');
 const LINKS = Symbol('links');
@@ -12,12 +12,17 @@ const STATE_LINKS = Symbol('links state');
 
 class Block {
 
+    constructor() {
+        this.data = '';
+        this.links = [];
+    }
+
     static createHash() {
 
         return crypto.createHash('sha256');
     }
 
-    static createHashStream() {
+    static extractMetadata() {
 
         const SIZE = this.SIZE;
         const hash = this.createHash();

@@ -45,7 +45,7 @@ class FilesystemStorageObject extends StorageObject {
                     throw err;
                 }
             })
-            .then(() => removeFile(this.tempFilePath))
+            .then(() => this.destroy())
             .then(() => hash);
     }
 

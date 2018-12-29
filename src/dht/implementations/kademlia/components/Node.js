@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+const Block = require('../../../../blocks/Block');
 
 class Node {
 
@@ -20,7 +20,7 @@ class Node {
 
     static fromPublicKey(publicKey, address, port, nodeId) {
 
-        const id = crypto.createHash('sha256').update(publicKey).digest('hex');
+        const id = Block.createHash().update(publicKey).digest('hex');
 
         if (nodeId && (id !== nodeId)) {
             throw new Error('Node ID did not originate from this public key.');

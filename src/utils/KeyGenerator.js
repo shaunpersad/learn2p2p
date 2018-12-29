@@ -22,7 +22,7 @@ class KeyGenerator {
                     throw err;
                 }
 
-                return this.constructor.generateKeys()
+                return this.generateKeys()
                     .then(({ publicKey, privateKey }) => {
 
                         return Promise.all([
@@ -35,12 +35,12 @@ class KeyGenerator {
             .then(([ publicKey, privateKey ]) => ({ publicKey, privateKey }));
     }
 
-    static generateKeys() {
+    generateKeys() {
 
         return new Promise((resolve, reject) => {
 
             if (!crypto.generateKeyPair) {
-                return reject(new Error('Generating key pairs automatically is only available in Node >= v10.12. Please generate them youself in /data/keys as public.pem and private.pem.'));
+                return reject(new Error(`Generating key pairs automatically is only available in Node >= v10.12. Please generate them yourself in ${this.publicKeyPath} and ${this.privateKeyPath}.`));
             }
 
             crypto.generateKeyPair('rsa', {

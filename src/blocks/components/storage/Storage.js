@@ -1,3 +1,4 @@
+const { Readable, Writable } = require('stream');
 const StorageObject = require('./components/StorageObject');
 
 class Storage {
@@ -9,10 +10,17 @@ class Storage {
 
     createReadStreamAtHash(hash) {
 
+        return new Readable();
     }
 
     createWriteStreamAtHash(hash) {
 
+        return new Writable();
+    }
+
+    exists(hash) {
+
+        return Promise.resolve(false);
     }
 }
 

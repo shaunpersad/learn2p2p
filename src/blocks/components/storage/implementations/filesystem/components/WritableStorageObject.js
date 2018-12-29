@@ -18,7 +18,7 @@ class WritableStorageObject extends Writable {
     _write(chunk, encoding, callback) {
 
         this[STORAGE_OBJECT].length+= chunk.length;
-        this[SOURCE].write(chunk, encoding, callback);
+        this[SOURCE].write(chunk, encoding, () => callback());
     }
 
     _final(callback) {
