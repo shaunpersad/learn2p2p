@@ -35,45 +35,41 @@ class BlockStitcher extends Readable {
             return this.push(null);
         }
 
-        try {
-            this[STATE] = STATE_DATA;
-            this[CURRENT_HASH] = '';
-            this[SOURCE] = this[STORAGE].createReadStreamAtHash(hash);
-            this[SOURCE].setEncoding('utf8');
-            this[SOURCE].on('data', chunk => {
+        this[STATE] = STATE_DATA;
+        this[CURRENT_HASH] = '';
+        this[SOURCE] = this[STORAGE].createReadStreamAtHash(hash);
+        this[SOURCE].setEncoding('utf8');
+        this[SOURCE].on('error', err => this.emit('error', err));
+        this[SOURCE].on('end', () => this[MAKE_READ_STREAM]());
+        this[SOURCE].on('data', chunk => {
 
-                let value = '';
+            let value = '';
 
-                [...chunk].forEach(c => {
+            [...chunk].forEach(c => {
 
-                    switch(this[STATE]) {
-                        case STATE_DATA:
-                            if (c === '\n') {
-                                this[STATE] = STATE_LINKS;
-                            } else {
-                                value+= c;
-                            }
-                            break;
-                        case STATE_LINKS:
-                            if (c === '\n') {
-                                this[HASHES].push(this[CURRENT_HASH]);
-                                this[CURRENT_HASH] = '';
-                            } else {
-                                this[CURRENT_HASH]+= c;
-                            }
-                            break;
-                    }
-                });
-                if (value && !this.push(value)) {
-                    this[SOURCE].pause();
+                switch(this[STATE]) {
+                    case STATE_DATA:
+                        if (c === '\n') {
+                            this[STATE] = STATE_LINKS;
+                        } else {
+                            value+= c;
+                        }
+                        break;
+                    case STATE_LINKS:
+                        if (c === '\n') {
+                            this[HASHES].push(this[CURRENT_HASH]);
+                            this[CURRENT_HASH] = '';
+                        } else {
+                            this[CURRENT_HASH]+= c;
+                        }
+                        break;
                 }
-
             });
-            this[SOURCE].on('end', () => this[MAKE_READ_STREAM]());
 
-        } catch(err) {
-            this.emit('error', err);
-        }
+            if (value && !this.push(value)) {
+                this[SOURCE].pause();
+            }
+        });
     }
 
     _read() {
