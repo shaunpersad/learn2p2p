@@ -1,7 +1,7 @@
 const { Readable, Writable } = require('stream');
 
 const Storage = require('../../Storage');
-const StorageObject = require('../../StorageObject');
+const MemoryStorageObject = require('./components/MemoryStorageObject');
 const BlockExistsError = require('../../../errors/BlockExistsError');
 const BlockNotFoundError = require('../../../errors/BlockNotFoundError');
 
@@ -15,77 +15,20 @@ class MemoryStorage extends Storage {
 
     createStorageObject() {
 
-        const storage = this;
-        const key = Symbol();
-        storage.data[key] = '';
-
-        const MemoryStorageObject = class extends StorageObject {
-
-            createWriteStream(start = 0) {
-
-                this.length = start;
-
-                const storageObject = this;
-                let data = '';
-
-                return new Writable({
-                    decodeStrings: false,
-                    write(chunk, encoding, callback) {
-
-                        data+= chunk;
-
-                        callback();
-                    },
-                    final(callback) {
-
-                        storage.data[key] = storage.data[key].substring(0, start) + data;
-                        storageObject.length = storage.data[key].length;
-                        callback();
-                    }
-                });
-            }
-
-            createReadStream(start = 0, end = this.length) {
-
-                let data = storage.data[key].substring(start, end);
-
-                return new Readable({
-                    read(size) {
-
-                        const chunk = data.substring(0, size);
-                        data = data.substring(size);
-
-                        this.push(chunk || null);
-                    }
-                });
-            }
-
-            save(hash) {
-
-                if (storage.data[hash]) {
-                    throw new BlockExistsError();
-                }
-
-                storage.data[hash] = storage.data[key];
-                delete storage.data[key];
-
-                return Promise.resolve(hash);
-            }
-        };
-
-        return new MemoryStorageObject();
+        return Promise.resolve(new MemoryStorageObject(this.data));
     }
 
     createReadStreamAtHash(hash) {
 
-        if (!this.data[hash]) {
-            throw new BlockNotFoundError();
-        }
         const storage = this;
         let iterator = 0;
 
         return new Readable({
             read(size) {
+
+                if (!storage.data[hash]) {
+                    return this.emit('error', new BlockNotFoundError());
+                }
 
                 const chunk = storage.data[hash].substring(iterator, iterator + size);
                 iterator+= size;
@@ -96,15 +39,21 @@ class MemoryStorage extends Storage {
 
     createWriteStreamAtHash(hash) {
 
-        if (this.data[hash]) {
-            throw new BlockExistsError();
-        }
-        this.data[hash] = '';
         const storage = this;
+        const exists = !!storage.data[hash];
+        if (!exists) {
+            this.data[hash] = '';
+        }
 
         new Writable({
             write(chunk, encoding, callback) {
+
+                if (exists) {
+                    return callback(new BlockExistsError());
+                }
+
                 storage.data[hash]+= chunk.toString();
+
                 callback();
             }
         });

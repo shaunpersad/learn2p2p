@@ -1,10 +1,10 @@
-const StorageObject = require('./StorageObject');
+const StorageObject = require('./components/StorageObject');
 
 class Storage {
 
     createStorageObject() {
 
-        return new StorageObject();
+        return Promise.resolve(new StorageObject());
     }
 
     createReadStreamAtHash(hash) {

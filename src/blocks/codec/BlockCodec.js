@@ -13,16 +13,23 @@ class BlockCodec {
 
     createBlocks(tempFile) {
 
+        console.log('creating blocks');
+
         return Promise.resolve().then(() => {
 
             let numLinks = 0;
             let length = tempFile.length;
+
+            console.log('before', { length, numLinks });
 
             while (numLinks < Block.MAX_NUM_LINKS && (length - Block.SIZE) > 0) {
 
                 length-= Block.SIZE;
                 numLinks++;
             }
+
+            console.log('after', { length, numLinks });
+
 
             if (!numLinks) {
 
@@ -35,27 +42,30 @@ class BlockCodec {
                         .pipe(hashStream)
                         .on('error', reject)
                         .on('data', data => {})
-                        .on('end', () => tempFile.save(hashStream[Block.HASH]).then(resolve));
+                        .on('end', () => tempFile.saveAs(hashStream[Block.HASH]).then(resolve));
                 });
             }
 
             return Promise.all(Array.from({ length: numLinks }, (value, i) => {
 
-                return new Promise((resolve, reject) => {
+                return this.storage.createStorageObject()
+                    .then(block => {
 
-                    const hashStream = Block.createHashStream();
-                    const block = this.storage.createStorageObject();
-                    const start = length + (i * Block.SIZE);
-                    const end = start + Block.SIZE;
+                        return new Promise((resolve, reject) => {
 
-                    tempFile.createReadStream(start, end)
-                        .on('error', reject)
-                        .pipe(hashStream)
-                        .on('error', reject)
-                        .pipe(block.createWriteStream())
-                        .on('error', reject)
-                        .on('finish', () => block.save(hashStream[Block.HASH]).then(resolve));
-                });
+                            const hashStream = Block.createHashStream();
+                            const start = length + (i * Block.SIZE);
+                            const end = start + Block.SIZE;
+
+                            tempFile.createReadStream(start, end)
+                                .on('error', reject)
+                                .pipe(hashStream)
+                                .on('error', reject)
+                                .pipe(block.createWriteStream())
+                                .on('error', reject)
+                                .on('finish', () => block.saveAs(hashStream[Block.HASH]).then(resolve));
+                        });
+                    });
 
             })).then(hashes => {
 
@@ -89,18 +99,21 @@ class BlockCodec {
 
     encode(readStream) {
 
-        return new Promise((resolve, reject) => {
+        return this.storage.createStorageObject()
+            .then(tempFile => {
 
-            const tempFile = this.storage.createStorageObject();
+                return new Promise((resolve, reject) => {
 
-            readStream.on('error', reject)
-                .pipe(new Base64.Encoder())
-                .on('error', reject)
-                .pipe(tempFile.createWriteStream())
-                .on('error', reject)
-                .on('finish', () => resolve(tempFile));
+                    readStream.on('error', reject)
+                        .pipe(new Base64.Encoder())
+                        .on('error', reject)
+                        .pipe(tempFile.createWriteStream())
+                        .on('error', reject)
+                        .on('finish', () => resolve(tempFile));
 
-        }).then(tempFile => this.createBlocks(tempFile));
+                });
+
+            }).then(tempFile => this.createBlocks(tempFile))
     }
 
     decode(hash, writeStream) {

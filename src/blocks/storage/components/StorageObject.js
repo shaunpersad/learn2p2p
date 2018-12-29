@@ -14,9 +14,13 @@ class StorageObject {
 
     }
 
-    save(hash) {
+    saveAs(hash) {
 
         return Promise.resolve(hash);
+    }
+
+    destroy() {
+        return Promise.resolve();
     }
 }
 
