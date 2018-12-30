@@ -1,7 +1,7 @@
 const { Readable } = require('stream');
 const Base64 = require('b64');
 
-const BlockStitcher = require('./components/BlockStitcher');
+const BlockStitcher = require('./components/DataStitcher');
 
 const BlockNotFoundError = require('../errors/BlockNotFoundError');
 
@@ -31,42 +31,42 @@ class BlockCodec {
      */
     encode(readStream) {
 
-        return this.storage.createStorageObject()
-            .then(tempFile => {
+        return this.storage.createNewBlock()
+            .then(rootBlock => {
 
                 return new Promise((resolve, reject) => {
 
                     readStream.on('error', reject)
                         .pipe(new Base64.Encoder()) // encode the data into base64
                         .on('error', reject)
-                        .pipe(tempFile.createWriteStream()) // write the base64 data into the storage object
+                        .pipe(rootBlock.createWriteStream()) // write the base64 data into the root block
                         .on('error', reject)
-                        .on('finish', () => resolve(tempFile));
+                        .on('finish', () => resolve(rootBlock));
 
                 });
 
-            }).then(tempFile => this.createBlocks(tempFile)); // create blocks out of the storage object
+            }).then(rootBlock => this.createBlocks(rootBlock)); // create blocks out of the root block
     }
 
     /**
-     * Chops up the contents of a storage object into blocks.
+     * Chops up the contents of the root block into linked blocks.
      *
-     * This algorithm starts at the end of the storage object and works its way to the start,
+     * This algorithm starts at the end of the root block and works its way to the start,
      * extracting as many block-sized chunks as it can until MAX_NUM_LINKS.
      * It hashes these chunks and saves them as individual blocks,
-     * then appends their hashes back into the end of the storage object.
-     * The process then repeats itself until there is only one block left. That is the root block.
+     * then appends their hashes back into the end of the root block.
+     * The process then repeats itself until no more links can be created.
      * The root block's hash is then returned.
      *
-     * @param {StorageObject} tempFile
+     * @param {Block} rootBlock
      * @returns {Promise<string>}
      */
-    createBlocks(tempFile) {
+    createBlocks(rootBlock) {
 
         return Promise.resolve().then(() => {
 
             let numLinks = 0;
-            let length = tempFile.length;
+            let length = rootBlock.length;
 
             /**
              * Calculate the maximum number of links we can create.
@@ -78,55 +78,42 @@ class BlockCodec {
             }
 
             /**
-             * If there are no more links to create, we're at the root block.
-             * Calculate it's hash, and save it using it's hash.
+             * If there are no more links to create, save the root block.
              */
             if (!numLinks) {
 
-                const extractMetadata = Block.extractMetadata();
-
-                return new Promise((resolve, reject) => {
-
-                    tempFile.createReadStream()
-                        .on('error', reject)
-                        .pipe(extractMetadata)
-                        .on('error', reject)
-                        .on('data', data => {})
-                        .on('end', () => tempFile.saveAs(extractMetadata[Block.HASH]).then(resolve)); // returns the hash
-                });
+                return rootBlock.save();
             }
 
             /**
              * If we do have links to create, lets create their blocks.
-             * We do so by reading the specific chunks out of the storage object,
-             * calculating their hash, and saving them in a new storage object using their hash.
+             * We do so by reading the specific chunks out of the root block,
+             * and saving them in their own blocks.
              */
             return Promise.all(Array.from({ length: numLinks }, (value, i) => {
 
-                return this.storage.createStorageObject() // create a new storage object that acts as the block
+                return this.storage.createNewBlock()
                     .then(block => {
 
                         return new Promise((resolve, reject) => {
 
-                            const extractMetadata = Block.extractMetadata();
                             const start = length + (i * Block.SIZE);
                             const end = start + Block.SIZE;
 
-                            tempFile.createReadStream(start, end) // figure out where to read from
+                            rootBlock.createReadStream(start, end) // figure out where to read from
                                 .on('error', reject)
-                                .pipe(extractMetadata)
+                                .pipe(block.createWriteStream()) // write the data into the new block
                                 .on('error', reject)
-                                .pipe(block.createWriteStream()) // write the data into the block
-                                .on('error', reject)
-                                .on('finish', () => block.saveAs(extractMetadata[Block.HASH]).then(resolve));
+                                .on('finish', () => resolve(block));
                         });
-                    });
+                    })
+                    .then(block => block.save());
 
             })).then(hashes => {
 
                 /**
-                 * Once we have the hashes of the newly created links,
-                 * append them to the end of the storage object.
+                 * Once we have the hashes of the newly created blocks,
+                 * append them to the end of the root block.
                  */
                 return new Promise((resolve, reject) => {
 
@@ -138,7 +125,7 @@ class BlockCodec {
 
                     this.constructor.createStringStream(links)
                         .on('error', reject)
-                        .pipe(tempFile.createWriteStream(length)) // start writing at the end of the storage object
+                        .pipe(rootBlock.createWriteStream(length)) // start writing at the end of the root block
                         .on('error', reject)
                         .on('finish', () => resolve());
 
@@ -148,7 +135,7 @@ class BlockCodec {
         }).then(hash => {
 
             if (!hash) { // if we haven't yet gotten the root block's hash, recursively call createBlocks.
-                return this.createBlocks(tempFile);
+                return this.createBlocks(rootBlock);
             }
 
             return hash;
@@ -170,20 +157,7 @@ class BlockCodec {
 
         return this.dht.kvStore.fetch(hash) // get the block's location out of the DHT's local KV store
             .then(value => this.dht.save(hash, value)) // save the block's location into the DHT
-            .then(() => {
-
-                return new Promise((resolve, reject) => {
-
-                    const extractMetadata = Block.extractMetadata();
-
-                    this.storage.createReadStreamAtHash(hash) // read from the block to get its links
-                        .on('error', reject)
-                        .pipe(extractMetadata)
-                        .on('error', reject)
-                        .on('data', () => {})
-                        .on('end', () => resolve(extractMetadata[Block.LINKS])); // get the block's links
-                });
-            })
+            .then(() => this.getBlockLinks(hash))
             .then(links => {
 
                 if (!links.length) {
@@ -208,17 +182,7 @@ class BlockCodec {
      */
     download(hash) {
 
-        return new Promise((resolve, reject) => {
-
-            const extractMetadata = Block.extractMetadata();
-
-            this.storage.createReadStreamAtHash(hash)
-                .on('error', reject)
-                .pipe(extractMetadata)
-                .on('error', reject)
-                .on('data', () => {})
-                .on('end', () => resolve(extractMetadata[Block.LINKS]));
-        })
+        return this.getBlockLinks(hash)
             .then(links => {
 
                 if (!links.length) {
@@ -261,6 +225,20 @@ class BlockCodec {
                 .pipe(writeStream)
                 .on('error', reject)
                 .on('finish', () => resolve());
+        });
+    }
+
+    getBlockLinks(hash) {
+
+        return new Promise((resolve, reject) => {
+
+            const extractMetadata = Block.extractMetadata();
+
+            this.storage.createBlockReadStream(hash)
+                .on('error', reject)
+                .pipe(extractMetadata)
+                .on('error', reject)
+                .on('finish', () => resolve(extractMetadata[Block.LINKS]));
         });
     }
 

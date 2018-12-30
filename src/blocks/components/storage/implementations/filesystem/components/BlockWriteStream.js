@@ -2,26 +2,26 @@ const fs = require('fs');
 const { Writable } = require('stream');
 
 const SOURCE = Symbol('source');
-const STORAGE_OBJECT = Symbol('storage object');
+const BLOCK = Symbol('block');
 
 /**
  * Wraps a writable stream of a file,
  * in order to keep track of the length of data being written.
  */
-class WritableStorageObject extends Writable {
+class BlockWriteStream extends Writable {
 
-    constructor(path, start, storageObject, streamOptions) {
+    constructor(path, start, block, streamOptions) {
 
         super(streamOptions);
-        this[STORAGE_OBJECT] = storageObject;
-        this[STORAGE_OBJECT].length = start;
+        this[BLOCK] = block;
+        this[BLOCK].length = start;
         this[SOURCE] = fs.createWriteStream(path, { flags: 'r+', start });
         this[SOURCE].on('error', err => this.emit('error', err));
     }
 
     _write(chunk, encoding, callback) {
 
-        this[STORAGE_OBJECT].length+= chunk.length; // update the storage object's length
+        this[BLOCK].length+= chunk.length; // update the block's length
         this[SOURCE].write(chunk, encoding, () => callback());
     }
 
@@ -31,4 +31,4 @@ class WritableStorageObject extends Writable {
     }
 }
 
-module.exports = WritableStorageObject;
+module.exports = BlockWriteStream;

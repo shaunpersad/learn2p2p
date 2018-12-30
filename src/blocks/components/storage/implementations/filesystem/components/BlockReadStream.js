@@ -9,7 +9,7 @@ const SOURCE = Symbol('source');
  * Wraps a readable stream of a file,
  * in order to better control the error type if the file does not exist.
  */
-class ReadableHash extends Readable {
+class BlockReadStream extends Readable {
 
     constructor(path, streamOptions) {
 
@@ -36,4 +36,4 @@ class ReadableHash extends Readable {
     }
 }
 
-module.exports = ReadableHash;
+module.exports = BlockReadStream;

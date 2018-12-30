@@ -1,9 +1,8 @@
-const { Readable, Writable } = require('stream');
+const { Readable } = require('stream');
 
-const BlockExistsError = require('../../../errors/BlockExistsError');
 const BlockNotFoundError = require('../../../errors/BlockNotFoundError');
 
-const MemoryStorageObject = require('./components/MemoryStorageObject');
+const MemoryBlock = require('./components/MemoryBlock');
 const Storage = require('../../Storage');
 
 /**
@@ -13,15 +12,15 @@ class MemoryStorage extends Storage {
 
     constructor() {
         super();
-        this.data = {};
+        this.memory = {};
     }
 
-    createStorageObject() {
+    createNewBlock() {
 
-        return Promise.resolve(new MemoryStorageObject(this.data));
+        return Promise.resolve(new MemoryBlock(this.memory));
     }
 
-    createReadStreamAtHash(hash) {
+    createBlockReadStream(hash) {
 
         const storage = this;
         let iterator = 0;
@@ -29,42 +28,20 @@ class MemoryStorage extends Storage {
         return new Readable({
             read(size) {
 
-                if (!storage.data[hash]) {
+                if (!storage.memory[hash]) {
                     return this.emit('error', new BlockNotFoundError()); // throw BlockNotFoundError if does not exist.
                 }
 
-                const chunk = storage.data[hash].substring(iterator, iterator + size);
+                const chunk = storage.memory[hash].substring(iterator, iterator + size);
                 iterator+= size;
                 this.push(chunk || null);
             }
         });
     }
 
-    createWriteStreamAtHash(hash) {
+    blockExists(hash) {
 
-        const storage = this;
-        const exists = !!storage.data[hash];
-        if (!exists) {
-            this.data[hash] = '';
-        }
-
-        new Writable({
-            write(chunk, encoding, callback) {
-
-                if (exists) {
-                    return callback(new BlockExistsError()); // throw BlockExistsError if already exists.
-                }
-
-                storage.data[hash]+= chunk.toString();
-
-                callback();
-            }
-        });
-    }
-
-    exists(hash) {
-
-        return Promise.resolve(this.data[hash] !== undefined);
+        return Promise.resolve(this.memory[hash] !== undefined);
     }
 }
 

@@ -1,49 +1,37 @@
-const { Readable, Writable } = require('stream');
-const StorageObject = require('./components/StorageObject');
+const { Readable } = require('stream');
+const Block = require('../../Block');
 
 /**
  * ABSTRACT CLASS
  *
  * This represents the entity that stores and retrieves blocks.
- * You should be able to read blocks, create new blocks,
- * check if a block exists, and create "storage objects".
- *
- * Storage objects are simply empty spaces to put arbitrary data.
- * It's most equivalent to a temporary file.
+ * You should be able to create new blocks, fetch blocks,
+ * and check if a block exists.
  */
 class Storage {
 
     /**
-     * @returns {Promise<StorageObject>}
+     * @returns {Promise<Block>}
      */
-    createStorageObject() {
+    createNewBlock() {
 
-        return Promise.resolve(new StorageObject());
+        return Promise.resolve(new Block());
     }
 
     /**
      * @param {string} hash
      * @returns {Readable}
      */
-    createReadStreamAtHash(hash) {
+    createBlockReadStream(hash) {
 
         return new Readable();
     }
 
     /**
      * @param {string} hash
-     * @returns {Writable}
-     */
-    createWriteStreamAtHash(hash) {
-
-        return new Writable();
-    }
-
-    /**
-     * @param {string} hash
      * @returns {Promise<boolean>}
      */
-    exists(hash) {
+    blockExists(hash) {
 
         return Promise.resolve(false);
     }

@@ -9,7 +9,7 @@ const MAKE_READ_STREAM = Symbol('make read stream');
 const STATE_DATA = Symbol('data state');
 const STATE_LINKS = Symbol('links state');
 
-class BlockStitcher extends Readable {
+class DataStitcher extends Readable {
 
     constructor(hash, storage, streamOptions) {
 
@@ -37,7 +37,7 @@ class BlockStitcher extends Readable {
 
         this[STATE] = STATE_DATA;
         this[CURRENT_HASH] = '';
-        this[SOURCE] = this[STORAGE].createReadStreamAtHash(hash);
+        this[SOURCE] = this[STORAGE].createBlockReadStream(hash);
         this[SOURCE].setEncoding('utf8');
         this[SOURCE].on('error', err => this.emit('error', err));
         this[SOURCE].on('end', () => this[MAKE_READ_STREAM]());
@@ -78,4 +78,4 @@ class BlockStitcher extends Readable {
     }
 }
 
-module.exports = BlockStitcher;
+module.exports = DataStitcher;

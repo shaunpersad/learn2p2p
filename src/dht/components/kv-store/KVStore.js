@@ -1,5 +1,5 @@
 
-class DHTKVStore {
+class KVStore {
 
     save(key, value) {
 
@@ -23,4 +23,4 @@ class DHTKVStore {
     }
 }
 
-module.exports = DHTKVStore;
+module.exports = KVStore;

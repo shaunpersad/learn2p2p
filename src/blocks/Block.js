@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { Transform } = require('stream');
+const { Readable, Transform, Writable } = require('stream');
 
 const InvalidBlockError = require('./components/errors/InvalidBlockError');
 
@@ -34,20 +34,57 @@ const STATE_LINKS = Symbol('links state');
  */
 class Block {
 
-    /**
-     * This is only here for descriptive purposes.
-     * We never explicitly create Block objects.
-     * Instead, we create blocks in a streaming fashion.
-     */
     constructor() {
-        this.data = '';
-        this.links = [];
+        this.length = 0;
+    }
+
+    /**
+     * Returns a writable stream to block.
+     *
+     * @param {number} [start]
+     * @returns {Writable}
+     */
+    createWriteStream(start = 0) {
+
+        this.length = start;
+        return new Writable();
+    }
+
+    /**
+     * Returns a readable stream to the block.
+     *
+     * @param {number} [start] - inclusive
+     * @param {number} [end] - exclusive
+     * @returns {Readable}
+     */
+    createReadStream(start = 0, end = this.length) {
+
+        return new Readable();
+    }
+
+    /**
+     * Saves the block and returns its hash.
+     *
+     * @returns {Promise<string>}
+     */
+    save() {
+
+        return Promise.resolve('');
+    }
+
+    /**
+     * Destroys the block.
+     *
+     * @returns {Promise}
+     */
+    destroy() {
+        return Promise.resolve();
     }
 
     /**
      * All hashes are created using SHA256.
      *
-     * @returns {crypto.Hash}
+     * @returns {Hash}
      */
     static createHash() {
 
@@ -63,7 +100,7 @@ class Block {
      * We can get this metadata from the stream after it is complete
      * by accessing the relevant properties from the stream object.
      *
-     * @returns {stream.Transform}
+     * @returns {Transform}
      */
     static extractMetadata() {
 
@@ -119,12 +156,6 @@ class Block {
         });
     }
 
-    /**
-     * Every hash is 64 bytes long (in hex).
-     */
-    static get HASH_HEX_SIZE() {
-        return 64;
-    }
 
     /**
      * Every block is a maximum of 160 bytes.

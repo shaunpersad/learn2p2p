@@ -6,16 +6,15 @@ const writeFile = util.promisify(fs.writeFile);
 const access = util.promisify(fs.access);
 const randomBytes = util.promisify(crypto.randomBytes);
 
-const FilesystemStorageObject = require('./components/FilesystemStorageObject');
-const ReadableHash = require('./components/ReadableHash');
-const WritableHash = require('./components/WritableHash');
+const FilesystemBlock = require('./components/FilesystemBlock');
+const BlockReadStream = require('./components/BlockReadStream');
 
 const Storage = require('../../Storage');
 
 /**
  * An implementation of Storage that uses the filesystem.
- * In this implementation, storage objects are simply temporary files,
- * and blocks are saved in their own individual text files.
+ * In this implementation, blocks are simply temporary files,
+ * and they are saved in their own individual text files when .save() is called.
  */
 class FilesystemStorage extends Storage {
 
@@ -24,21 +23,29 @@ class FilesystemStorage extends Storage {
         this.dataDirectory = dataDirectory;
     }
 
-    createStorageObject() {
+    createNewBlock() {
 
         const createBlockPath = this.createBlockPath.bind(this);
 
-        return this.createTempFile().then(tempFilePath => new FilesystemStorageObject(tempFilePath, createBlockPath));
+        return this.createTempFile().then(tempFilePath => new FilesystemBlock(tempFilePath, createBlockPath));
     }
 
-    createReadStreamAtHash(hash) {
+    createBlockReadStream(hash) {
 
-        return new ReadableHash(this.createBlockPath(hash));
+        return new BlockReadStream(this.createBlockPath(hash));
     }
 
-    createWriteStreamAtHash(hash) {
+    blockExists(hash) {
 
-        return new WritableHash(this.createBlockPath(hash));
+        return access(this.createBlockPath(hash), (fs.constants || fs).F_OK)
+            .then(() => true)
+            .catch(err => {
+
+                if (err.code === 'ENOENT') {
+                    return false;
+                }
+                throw err;
+            });
     }
 
     createBlockPath(hash) {
@@ -66,19 +73,6 @@ class FilesystemStorage extends Storage {
                         }
                         return this.createTempFile();
                     });
-            });
-    }
-
-    exists(hash) {
-
-        return access(this.createBlockPath(hash), (fs.constants || fs).F_OK)
-            .then(() => true)
-            .catch(err => {
-
-                if (err.code === 'ENOENT') {
-                    return false;
-                }
-                throw err;
             });
     }
 }
