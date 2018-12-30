@@ -1,3 +1,4 @@
+const { Writable } = require('stream');
 const Codec = require('./src/blocks/components/codec/BlockCodec');
 const Storage = require('./src/blocks/components/storage/implementations/filesystem/FilesystemStorage');
 
@@ -7,18 +8,16 @@ const codec = new Codec(storage); // performs data <=> hash conversions
 const content = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat.';
 
 codec.encode(Codec.createStringStream(content))
-    .then(() => {
-        return codec.encode(Codec.createStringStream(content));
-    })
     .then(hash => {
 
-        storage.createStorageObject().then(output => {
+        let assembled = '';
 
-            codec.decode(hash, output.createWriteStream()).then(() => {
-
-                output.createReadStream()
-                    .on('data', data => console.log(data.toString()))
-                    .on('end', () => output.destroy());
-            });
-        }).catch(console.log);
-    });
+        return codec.decode(hash, new Writable({
+            write(chunk, encoding, callback) {
+                assembled+= chunk;
+                callback();
+            }
+        })).then(() => assembled);
+    })
+    .then(console.log)
+    .catch(console.log);

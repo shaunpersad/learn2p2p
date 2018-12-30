@@ -6,12 +6,17 @@ const writeFile = util.promisify(fs.writeFile);
 const access = util.promisify(fs.access);
 const randomBytes = util.promisify(crypto.randomBytes);
 
-const Storage = require('../../Storage');
 const FilesystemStorageObject = require('./components/FilesystemStorageObject');
 const ReadableHash = require('./components/ReadableHash');
 const WritableHash = require('./components/WritableHash');
 
+const Storage = require('../../Storage');
 
+/**
+ * An implementation of Storage that uses the filesystem.
+ * In this implementation, storage objects are simply temporary files,
+ * and blocks are saved in their own individual text files.
+ */
 class FilesystemStorage extends Storage {
 
     constructor(dataDirectory = path.resolve(__dirname, '../../../../../../data')) {

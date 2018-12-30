@@ -1,8 +1,10 @@
 const { Readable, Writable } = require('stream');
 
 const StorageObject = require('../../../components/StorageObject');
-const BlockExistsError = require('../../../../errors/BlockExistsError');
 
+/**
+ * An implementation of a storage object that uses memory.
+ */
 class MemoryStorageObject extends StorageObject {
 
     constructor(data) {

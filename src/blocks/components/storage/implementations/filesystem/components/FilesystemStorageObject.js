@@ -5,6 +5,9 @@ const removeFile = util.promisify(fs.unlink);
 const WritableStorageObject = require('./WritableStorageObject');
 const StorageObject = require('../../../components/StorageObject');
 
+/**
+ * An implementation of StorageObject that uses the filesystem.
+ */
 class FilesystemStorageObject extends StorageObject {
 
     constructor(tempFilePath, createBlockPath) {

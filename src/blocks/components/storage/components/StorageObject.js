@@ -1,5 +1,11 @@
 const { Readable, Writable } = require('stream');
 
+/**
+ * ABSTRACT CLASS
+ *
+ * A storage object is simply a temporary space to write to and read data from (e.g. a temporary file).
+ * After using, it can either be saved permanently, or destroyed.
+ */
 class StorageObject {
 
     constructor() {

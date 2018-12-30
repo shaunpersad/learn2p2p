@@ -4,6 +4,10 @@ const { Writable } = require('stream');
 const SOURCE = Symbol('source');
 const STORAGE_OBJECT = Symbol('storage object');
 
+/**
+ * Wraps a writable stream of a file,
+ * in order to keep track of the length of data being written.
+ */
 class WritableStorageObject extends Writable {
 
     constructor(path, start, storageObject, streamOptions) {
@@ -17,7 +21,7 @@ class WritableStorageObject extends Writable {
 
     _write(chunk, encoding, callback) {
 
-        this[STORAGE_OBJECT].length+= chunk.length;
+        this[STORAGE_OBJECT].length+= chunk.length; // update the storage object's length
         this[SOURCE].write(chunk, encoding, () => callback());
     }
 

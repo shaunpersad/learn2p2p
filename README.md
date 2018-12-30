@@ -19,7 +19,7 @@ In this project, users start their own peer **servers** on their machines. They 
 
 There's a lot to take in and understand in the above description. What are blocks? What does it mean that a block is content-addressable? What is a DHT and how does it work? What's Kademlia?
 
-We will get to these answers and more below. However, notice that the `src` directory of this project is also modelled almost exactly after these concepts. As we delve into the code, you will also notice that I make use of a lot of abstract classes, followed by implementations of those classes. I've also separated out the components that are related or contribute to the primary ideas. Both of these approaches are to help separate the concept from its implementation, and helps you to see the raw properties of the concept rather than being inundated by its implementation details.
+We will get to these answers and more below. Notice that the `src` directory of this project is also modelled almost exactly after these concepts. As we delve into the code, you will also notice that I make use of a lot of abstract classes, followed by implementations of those classes. I've also separated out the components that are related or contribute to the primary ideas. Both of these approaches are to help separate the concept from its implementation, and helps you to see the raw properties of the concept rather than being inundated by its implementation details.
     
 
 
