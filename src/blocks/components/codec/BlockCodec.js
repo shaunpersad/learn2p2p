@@ -1,7 +1,7 @@
 const { Readable } = require('stream');
 const Base64 = require('b64');
 
-const BlockStitcher = require('./components/DataStitcher');
+const DataStitcher = require('./components/DataStitcher');
 
 const BlockNotFoundError = require('../errors/BlockNotFoundError');
 
@@ -218,7 +218,7 @@ class BlockCodec {
 
         return new Promise((resolve, reject) => {
 
-            (new BlockStitcher(hash, this.storage)) // recursively processes each block and its links in the right order
+            (new DataStitcher(hash, this.storage)) // recursively processes each block and its links in the right order
                 .on('error', reject)
                 .pipe(new Base64.Decoder()) // decodes the data from its base64 format back to its original format
                 .on('error', reject)
