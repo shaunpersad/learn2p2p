@@ -1,0 +1,48 @@
+version: '2.1'
+services:
+
+  bootstrap:
+    build: .
+    image: shaunpersad/find
+    command: node dht-test.js
+    ports:
+    - '1337:1337'
+    - '8080:8080'
+    environment:
+    - DHT_PORT=1337
+    volumes:
+    - .:/usr/src/app
+    - /usr/src/app/node_modules
+    - ./data/test/bootstrap:/usr/src/app/data
+
+  peer_a:
+    build: .
+    image: shaunpersad/find
+    command: node dht-test.js
+    environment:
+    - BOOTSTRAP_ADDRESS=bootstrap
+    - BOOTSTRAP_PORT=1337
+    ports:
+    - '8081:8080'
+    volumes:
+    - .:/usr/src/app
+    - /usr/src/app/node_modules
+    - ./data/test/peer-a:/usr/src/app/data
+    links:
+      - bootstrap
+
+  peer_b:
+    build: .
+    image: shaunpersad/find
+    command: node dht-test.js
+    environment:
+    - BOOTSTRAP_ADDRESS=bootstrap
+    - BOOTSTRAP_PORT=1337
+    ports:
+    - '8082:8080'
+    volumes:
+    - .:/usr/src/app
+    - /usr/src/app/node_modules
+    - ./data/test/peer-b:/usr/src/app/data
+    links:
+    - bootstrap

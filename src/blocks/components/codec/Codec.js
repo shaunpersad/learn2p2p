@@ -13,7 +13,7 @@ const Block = require('../../Block');
  * to download blocks from the DHT,
  * and to decode blocks into data.
  */
-class BlockCodec {
+class Codec {
 
     constructor(storage, dht) {
 
@@ -261,4 +261,4 @@ class BlockCodec {
     }
 }
 
-module.exports = BlockCodec;
+module.exports = Codec;

@@ -105,10 +105,15 @@ class BlockReferenceKVStore extends KVStore {
             return res.end();
         }
 
+        res.setHeader('ETag', hash);
+        res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
+
         this.storage.createBlockReadStream(hash)
             .on('error', err => {
 
                 if (!res.headersSent) {
+                    res.removeHeader('ETag');
+                    res.removeHeader('Cache-Control');
                     res.statusCode = (err instanceof BlockNotFoundError) ? 404 : 500;
                 }
                 res.end();

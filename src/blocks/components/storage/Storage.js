@@ -4,8 +4,8 @@ const Block = require('../../Block');
 /**
  * ABSTRACT CLASS
  *
- * This represents the entity that stores and retrieves blocks.
- * You should be able to create new blocks, fetch blocks,
+ * This represents the entity that stores and retrieves block data.
+ * You should be able to create new blocks, stream block data,
  * and check if a block exists.
  */
 class Storage {

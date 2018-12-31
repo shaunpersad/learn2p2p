@@ -43,10 +43,14 @@ class RoutingTable {
 
         const nodes = [];
         let iteration = 0;
+        let bucketsVisited = 0;
 
-        while (nodes.length < amount && bucketIndex >= 0 && bucketIndex < this.numBuckets) {
+        while (nodes.length < amount && bucketsVisited < this.numBuckets) {
 
-            nodes.push(...this.buckets[bucketIndex].nodes);
+            if (bucketIndex >= 0 && bucketIndex < this.numBuckets) {
+                nodes.push(...this.buckets[bucketIndex].nodes);
+                bucketsVisited++;
+            }
 
             if (iteration++ % 2 === 0) {
                 bucketIndex = bucketIndex - iteration;
@@ -94,16 +98,21 @@ class RoutingTable {
             }
         }
 
-        return this.numBuckets - commonPrefixCount;
+        let index = this.numBuckets - commonPrefixCount - 1;
+        if (index < 0) {
+            index = 0;
+        }
+
+        return index;
     }
 
     static xor(nodeId1, nodeId2) {
 
-        const buffer1 = Buffer.from(nodeId1);
-        const buffer2 = Buffer.from(nodeId2);
+        const buffer1 = Buffer.from(nodeId1, 'hex');
+        const buffer2 = Buffer.from(nodeId2, 'hex');
         const result = [];
 
-        for (let i = 0; i < buffer1; i++) {
+        for (let i = 0; i < buffer1.length; i++) {
             result.push(buffer1[i] ^ buffer2[i]);
         }
 

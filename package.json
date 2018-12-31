@@ -2,10 +2,13 @@
   "name": "find",
   "version": "0.0.1",
   "description": "Experiments in file sharing",
-  "main": "index.js",
+  "main": "codec-test.js",
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "find-cli": "src/client.js"
   },
   "repository": {
     "type": "git",

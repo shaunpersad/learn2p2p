@@ -25,20 +25,20 @@ class KademliaDHT extends DHT {
         this.rpc = new RPC(rootNode, kvStore, this.constructor.constants);
     }
 
-    bootstrap({ port, address }, { port: peerPort, address: peerAddress }) {
+    init({ port, address }, { port: bootstrapPort, address: bootstrapAddress } = {}) {
 
         this.rpc.start(port, address).then(() => {
 
-            if (peerAddress && peerPort) {
+            if (bootstrapAddress && bootstrapPort) {
 
-                const peerNode = new Node(peerAddress, peerPort);
+                const bootstrapNode = new Node(null, bootstrapAddress, bootstrapPort);
 
-                return this.rpc.issuePingRequest(peerNode)
+                return this.rpc.issuePingRequest(bootstrapNode)
                     .then(() => this.findClosestNodes())
                     .then(() => this.refreshBuckets())
                     .catch(console.log);
             }
-        });
+        }).then(() => this);
     }
 
     save(key, value) {
@@ -83,19 +83,20 @@ class KademliaDHT extends DHT {
         const newNodesToPing = {};
 
         if (!closestPendingNodes.length) {
-            return subjectIdKind === 'node' ? closestPendingNodes : null;
+            return subjectIdKind === 'node' ? closestNodes : null;
         }
 
         let nodes = null;
         let value = null;
         const nodesWithValues = [];
 
-        return Promise.all(closestPendingNodes.slice(this.rpc.concurrency).map(node => {
+        return Promise.all(closestPendingNodes.slice(0, this.rpc.concurrency).map(node => {
 
-            const request = subjectIdKind === 'node' ? this.rpc.issueFindNodeRequest : this.rpc.issueFindValueRequest;
+            const request = subjectIdKind === 'node'
+                ? this.rpc.issueFindNodeRequest(node, subjectId)
+                : this.rpc.issueFindValueRequest(node, subjectId);
 
-            return request(node, subjectId)
-                .then(({ content: { payload, type } }) => {
+            return request.then(({ content: { payload, type } }) => {
 
                     nodeIdsGottenResponsesFor.push(node.id);
 
@@ -114,8 +115,8 @@ class KademliaDHT extends DHT {
                             nodesWithValues.push(node);
                             break;
                     }
-                })
-                .catch(err => this.rpc.routingTable.removeNode(node.id));
+
+                }).catch(err => this.rpc.routingTable.removeNode(node.id));
 
         }))
             .then(() => {

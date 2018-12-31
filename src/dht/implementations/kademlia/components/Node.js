@@ -4,9 +4,9 @@ class Node {
 
     constructor(nodeId, address, port, publicKey = null) {
         this.address = address;
-        this.port = port;
+        this.port = parseInt(port);
         this.id = nodeId;
-        this.publicKey = publicKey;
+        this.publicKey = publicKey ? publicKey.toString() : null;
         this.privateKey = '';
     }
 
@@ -26,13 +26,13 @@ class Node {
             throw new Error('Node ID did not originate from this public key.');
         }
 
-        return new this(nodeId, address, port, publicKey);
+        return new this(id, address, port, publicKey);
     }
 
     static createRootNode(publicKey, privateKey) {
 
         const node = this.fromPublicKey(publicKey);
-        node.privateKey = privateKey;
+        node.privateKey = privateKey.toString();
 
         return node;
     }

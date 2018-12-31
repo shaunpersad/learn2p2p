@@ -1,5 +1,5 @@
 const { Writable } = require('stream');
-const Codec = require('./src/blocks/components/codec/BlockCodec');
+const Codec = require('./src/blocks/components/codec/Codec');
 const Storage = require('./src/blocks/components/storage/implementations/filesystem/FilesystemStorage');
 
 const storage = new Storage(); // a place to store generated blocks
