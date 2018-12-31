@@ -44,7 +44,7 @@ class KeyGenerator {
             }
 
             crypto.generateKeyPair('rsa', {
-                modulusLength: 4096,
+                modulusLength: 2048,
                 publicKeyEncoding: { type: 'spki', format: 'pem' },
                 privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
             }, (err, publicKey, privateKey) => {

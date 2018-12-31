@@ -1,8 +1,6 @@
 const dgram = require('dgram');
-const crypto = require('crypto');
-const util = require('util');
-const randomBytes = util.promisify(crypto.randomBytes);
 
+const MessageProtocol = require('./MessageProtocol');
 const RoutingTable = require('./RoutingTable');
 const Node = require('./Node');
 
@@ -14,6 +12,7 @@ class RPC {
         this.rootNode = rootNode;
         this.kvStore = kvStore;
         this.concurrency = concurrency;
+        this.messageProtocol = new MessageProtocol(this.rootNode.privateKey);
 
         this.server = dgram.createSocket('udp4');
         this.server.on('error', this.onError.bind(this));
@@ -21,6 +20,7 @@ class RPC {
 
         this.routingTable = new RoutingTable(this.rootNode, numBuckets, nodesPerBucket);
         this.pendingRequests = {};
+        this.numRequests = 0;
     }
 
     start(port, address) {
@@ -46,158 +46,99 @@ class RPC {
 
     receiveMessage(message, { address, port }) {
 
-        message = message.toString();
-        let pieces = message.split('\n');
+        return this.messageProtocol.deserialize(message)
+            .then(({ body, verifySignature }) => {
 
-        if (pieces.length < 2) {
-            return;
-        }
+                const { id, nodeId, type, content } = body;
 
-        Promise.resolve().then(() => {
-
-            const encrypted = parseInt(pieces.shift());
-
-            let bodyText = pieces.join('\n');
-            if (encrypted) {
-                const asymmetricSecret = pieces.shift();
-                const asymmetricIv = pieces.shift();
-                const symmetric = pieces.shift();
-                if (!asymmetricSecret || !asymmetricIv || !symmetric) {
-                    return;
+                if ([ id, nodeId, type, content ].includes(undefined)) {
+                    throw new Error('Invalid message format.');
                 }
 
-                const secret = crypto.privateDecrypt(this.rootNode.privateKey, Buffer.from(asymmetricSecret, 'base64'));
-                const iv = crypto.privateDecrypt(this.rootNode.privateKey, Buffer.from(asymmetricIv, 'base64'));
-                const decipher = crypto.createDecipheriv('aes-128-cbc', secret, iv);
-                bodyText = decipher.update(symmetric, 'base64', 'utf8');
-                bodyText+= decipher.final('utf8');
-            }
-            pieces = bodyText.split('\n');
+                const node = (type === 'PING' || type === 'PING_REPLY')
+                    ? Node.fromPublicKey(content, address, port, nodeId)
+                    : (this.routingTable.getNode(nodeId) || new Node(nodeId, address, port));
 
-            const signatureLength = parseInt(pieces.shift());
-            const afterHeader = pieces.join('\n');
-            const signature = afterHeader.substring(0, signatureLength);
-            const bodyJSON = afterHeader.replace(signature, '');
+                const p = node.publicKey
+                    ? Promise.resolve()
+                    : this.issuePingRequest(node).then(({ content }) => node.publicKey = content);
 
-            const body = JSON.parse(bodyJSON);
-            const { id, nodeId, type, content } = body;
+                return p.then(() => {
 
-            console.log(type, 'message received, length', message.length);
+                    if (!verifySignature(node.publicKey)) {
 
-            if (!id || !nodeId || !type || !content) {
-                //console.log('short circuit 1');
-                return;
-            }
+                        return this.routingTable.removeNode(node.id);
+                    }
 
-            const node = (type === 'PING' || type === 'PING_REPLY')
-                ? Node.fromPublicKey(content, address, port, nodeId)
-                : (this.routingTable.getNode(nodeId) || new Node(nodeId, address, port));
+                    return Promise.all([
+                        Promise.resolve().then(() => {
 
-            const p = node.publicKey
-                ? Promise.resolve(node.publicKey)
-                : this.issuePingRequest(node).then(({ content }) => content);
+                            const fullBucket = this.routingTable.addCandidate(node);
 
-            return p.then(publicKey => {
+                            if (fullBucket) {
 
-                node.publicKey = publicKey;
+                                const nodes = fullBucket.getLeastRecentNodes(this.concurrency);
 
-                if (!crypto.createVerify('SHA256').update(bodyJSON).verify(node.publicKey, signature, 'base64')) {
+                                return Promise.all(nodes.map(node => {
 
-                    //console.log('short circuit 2');
-                    return this.routingTable.removeNode(node.id);
-                }
+                                    return this.issuePingRequest(node).catch(err => fullBucket.removeNode(node.id));
+                                }));
+                            }
+                        }),
+                        Promise.resolve().then(() => {
 
-                return Promise.all([
-                    Promise.resolve().then(() => {
+                            //console.log('handling message', id);
+                            //console.log('handling received message of type', type);
 
-                        const fullBucket = this.routingTable.addCandidate(node);
+                            if (this.pendingRequests[id] && type === `${this.pendingRequests[id].type}_REPLY`) {
 
-                        if (fullBucket) {
+                                //console.log('resolving');
 
-                            const nodes = fullBucket.getLeastRecentNodes(this.concurrency);
+                                const { resolve } = this.pendingRequests[id];
+                                delete this.pendingRequests[id];
 
-                            return Promise.all(nodes.map(node => {
+                                return resolve(body);
 
-                                return this.issuePingRequest(node).catch(err => fullBucket.removeNode(node.id));
-                            }));
-                        }
-                    }),
-                    Promise.resolve().then(() => {
+                            } else if (!type.endsWith('_REPLY')) {
 
-                        // TODO: validation
+                                //console.log('request handler');
+                                return this.requestHandler(node, type, content, id);
+                            } else {
+                                //console.log('doing nothing');
+                            }
+                        })
+                    ]);
+                });
 
-                        //console.log('handling received message of type', type);
-
-                        if (this.pendingRequests[id] && type === `${this.pendingRequests[id].type}_REPLY`) {
-
-                            // console.log('resolving');
-
-                            const { resolve } = this.pendingRequests[id];
-                            delete this.pendingRequests[id];
-
-                            return resolve(body);
-
-                        } else if (!type.endsWith('_REPLY')) {
-
-                            //console.log('handling', type, 'with request handler');
-                            return this.requestHandler(node, type, content, id);
-                        } else {
-                            //console.log('doing nothing');
-                        }
-                    })
-                ]);
-            });
-
-        }).catch(console.log);
+            }).catch(console.log);
 
     }
 
     sendMessage(toNode, type, content, encrypted = true, messageId = null) {
 
-        //console.log('sending message of type', type);
+        const body = {
+            id: messageId || `${++this.numRequests}_${Math.random()}`,
+            nodeId: this.rootNode.id,
+            type,
+            content
+        };
 
-        return new Promise((resolve, reject) => {
+        const p = (encrypted && !toNode.publicKey)
+            ? this.issuePingRequest(toNode).then(({ content }) => toNode.publicKey = content)
+            : Promise.resolve();
 
-            const body = {
-                id: messageId || Math.random(),
-                nodeId: this.rootNode.id,
-                type,
-                content
-            };
+        return p
+            .then(() => this.messageProtocol.serialize(body, toNode.publicKey))
+            .then(message => {
 
-            const bodyJSON = JSON.stringify(body);
-            const signature = crypto.createSign('SHA256').update(bodyJSON).sign(this.rootNode.privateKey, 'base64');
-            let bodyText = `${signature.length}\n${signature}${bodyJSON}`;
+                return new Promise((resolve, reject) => {
 
-            let p = Promise.resolve(bodyText);
+                    this.server.send(message, toNode.port, toNode.address, err => {
 
-            if (encrypted) {
-                p = Promise.all([
-                    randomBytes(16),
-                    randomBytes(16)
-                ]).then(([ secret, iv ]) => {
-
-                    const asymmetricSecret = crypto.publicEncrypt(toNode.publicKey, secret).toString('base64');
-                    const asymmetricIv = crypto.publicEncrypt(toNode.publicKey, iv).toString('base64');
-                    const cipher = crypto.createCipheriv('aes-128-cbc', secret, iv);
-                    let symmetric = cipher.update(bodyText, 'utf8', 'base64');
-                    symmetric+= cipher.final('base64');
-
-                    return `${asymmetricSecret}\n${asymmetricIv}\n${symmetric}`;
+                        err ? reject(err) : resolve(body.id);
+                    });
                 });
-            }
-
-            p.then(bodyText => {
-
-                const message = `${encrypted?'1':'0'}\n${bodyText}`;
-
-                this.server.send(message, toNode.port, toNode.address, err => {
-
-                    err ? reject(err) : resolve(body.id);
-                });
-
-            }).catch(reject);
-        });
+            });
     }
 
     sendMessageAndWait(timeToWait, toNode, type, content, encrypted = true, messageId = null) {
@@ -214,7 +155,7 @@ class RPC {
                         if (this.pendingRequests[messageId]) {
 
                             delete this.pendingRequests[messageId];
-                            reject(new Error(`${type} request timed out. Message ID: ${messageId}`));
+                            reject(new Error(`${type} request to ${toNode.id} timed out. Message ID: ${messageId}`));
                         }
 
                     }, timeToWait);

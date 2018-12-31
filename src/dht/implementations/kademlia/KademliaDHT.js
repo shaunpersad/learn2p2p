@@ -27,18 +27,23 @@ class KademliaDHT extends DHT {
 
     init({ port, address }, { port: bootstrapPort, address: bootstrapAddress } = {}) {
 
-        this.rpc.start(port, address).then(() => {
+        return this.rpc.start(port, address)
+            .then(() => {
 
-            if (bootstrapAddress && bootstrapPort) {
+                if (bootstrapAddress && bootstrapPort) {
 
-                const bootstrapNode = new Node(null, bootstrapAddress, bootstrapPort);
+                    const bootstrapNode = new Node(null, bootstrapAddress, bootstrapPort);
 
-                return this.rpc.issuePingRequest(bootstrapNode)
-                    .then(() => this.findClosestNodes())
-                    .then(() => this.refreshBuckets())
-                    .catch(console.log);
-            }
-        }).then(() => this);
+                    console.log('--- bootstrapping ---');
+
+                    return this.rpc.issuePingRequest(bootstrapNode)
+                        .then(() => console.log('--- finding closest nodes ---') || this.findClosestNodes())
+                        .then(() => console.log('--- refreshing buckets ---') || this.refreshBuckets())
+                        .then(() => console.log('--- bootstrapping complete ---'))
+                        .catch(console.log);
+                }
+            })
+            .then(() => this);
     }
 
     save(key, value) {
@@ -46,7 +51,7 @@ class KademliaDHT extends DHT {
         return this.findClosestNodes(key, 'node').then(nodes => {
 
             const result = { success: 0, fail: 0 };
-            const { WILL_NOT_STORE } = this.rpc.dhtStorage.constructor;
+            const { WILL_NOT_STORE } = this.rpc.kvStore.constructor;
 
             return Promise.all(nodes.map(node => {
 
@@ -58,7 +63,7 @@ class KademliaDHT extends DHT {
                     })
                     .then(({ content: status }) => {
 
-                        status === this.rpc.dhtStorage.constructor.WILL_NOT_STORE ? result.fail++ : result.success++;
+                        status === this.rpc.kvStore.constructor.WILL_NOT_STORE ? result.fail++ : result.success++;
                     });
 
             })).then(() => result);
