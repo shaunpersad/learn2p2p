@@ -13,12 +13,12 @@ class RPC {
         this.kvStore = kvStore;
         this.concurrency = concurrency;
         this.messageProtocol = new MessageProtocol(this.rootNode.privateKey);
+        this.routingTable = new RoutingTable(this.rootNode, numBuckets, nodesPerBucket);
 
         this.server = dgram.createSocket('udp4');
         this.server.on('error', this.onError.bind(this));
         this.server.on('message', this.receiveMessage.bind(this));
 
-        this.routingTable = new RoutingTable(this.rootNode, numBuckets, nodesPerBucket);
         this.pendingRequests = {};
         this.numRequests = 0;
     }
