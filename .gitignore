@@ -61,4 +61,4 @@ typings/
 .next
 
 data/**/*
-!data/**/.gitkeep
+!data/**/*.gitkeep
