@@ -24,6 +24,9 @@ Promise.all([
     const httpAddress = `${ipAddress}:${blockServerPost}`;
     const kvStore = new KVStore(storage, httpAddress);
 
+    console.log('Public IP is', ipAddress);
+    console.log('Hosting blocks from', httpAddress);
+
     return kvStore.host(blockServerPost)
         .then(() => {
 
