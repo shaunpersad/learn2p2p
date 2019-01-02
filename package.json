@@ -1,14 +1,14 @@
 {
-  "name": "find",
+  "name": "learn2p2p",
   "version": "0.0.1",
-  "description": "Experiments in file sharing",
-  "main": "codec-test.js",
+  "description": "Learning how to build a fully-functional p2p file sharing application",
+  "main": "src/blocks/example.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node src/peer/server/start.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "find-cli": "src/client.js"
+    "learn2p2p": "src/peer/client/start.js"
   },
   "repository": {
     "type": "git",

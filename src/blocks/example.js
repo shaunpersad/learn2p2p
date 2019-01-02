@@ -1,6 +1,6 @@
 const { Writable } = require('stream');
-const Codec = require('./src/blocks/components/codec/Codec');
-const Storage = require('./src/blocks/components/storage/implementations/filesystem/FilesystemStorage');
+const Codec = require('./components/codec/Codec');
+const Storage = require('./components/storage/implementations/filesystem/FilesystemStorage');
 
 const storage = new Storage(); // a place to store generated blocks
 const codec = new Codec(storage); // performs data <=> hash conversions

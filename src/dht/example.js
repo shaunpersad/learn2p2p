@@ -1,7 +1,7 @@
-const KVStore = require('./src/dht/components/kv-store/implementations/memory/MemoryKVStore');
-const DHT = require('./src/dht/implementations/kademlia/KademliaDHT');
-const KeyGenerator = require('./src/utils/KeyGenerator');
-const Block = require('./src/blocks/Block');
+const KVStore = require('./components/kv-store/implementations/memory/MemoryKVStore');
+const DHT = require('./implementations/kademlia/KademliaDHT');
+const KeyGenerator = require('../utils/KeyGenerator');
+const Block = require('../blocks/Block');
 
 const keyGenerator = new KeyGenerator();
 

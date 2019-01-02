@@ -1,4 +1,4 @@
-# find
+# learn2p2p
 Experiments in file sharing.
 
 ## Introduction
