@@ -4,7 +4,7 @@ class DHT {
         this.kvStore = kvStore;
     }
 
-    init() {
+    bootstrap() {
         throw new Error('Please override the init() method.');
     }
 

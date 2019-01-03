@@ -17,28 +17,29 @@ class KademliaDHT extends DHT {
         }
     }
 
-    constructor(kvStore, publicKey, privateKey) {
+    constructor(kvStore, publicKey, privateKey, dhtPort) {
 
         super(kvStore);
 
         const rootNode = Node.createRootNode(publicKey, privateKey);
-        this.rpc = new RPC(rootNode, kvStore, this.constructor.constants);
+        this.rpc = new RPC(rootNode, kvStore, this.constructor.constants, dhtPort);
     }
 
-    init({ port, address }, { port: bootstrapPort, address: bootstrapAddress } = {}) {
+    bootstrap({ address, port } = {}) {
 
-        return this.rpc.start(port, address)
+        return this.rpc.start()
             .then(() => {
 
-                if (bootstrapAddress && bootstrapPort) {
+                if (address && port) {
 
-                    const bootstrapNode = new Node(null, bootstrapAddress, bootstrapPort);
+                    const bootstrapNode = new Node(null, address, port);
 
                     console.log('--- bootstrapping ---');
 
                     return this.rpc.issuePingRequest(bootstrapNode)
                         .then(() => console.log('--- finding closest nodes ---') || this.findClosestNodes())
                         .then(() => console.log('--- refreshing buckets ---') || this.refreshBuckets())
+                        .then(() => console.log('--- setting up timers ---') || this.setupTimers())
                         .then(() => console.log('--- bootstrapping complete ---'))
                         .catch(console.log);
                 }
@@ -91,7 +92,7 @@ class KademliaDHT extends DHT {
             return subjectIdKind === 'node' ? closestNodes : null;
         }
 
-        let nodes = null;
+        let holePunchedNodes = null;
         let value = null;
         const nodesWithValues = [];
 
@@ -101,17 +102,18 @@ class KademliaDHT extends DHT {
                 ? this.rpc.issueFindNodeRequest(node, subjectId)
                 : this.rpc.issueFindValueRequest(node, subjectId);
 
-            return request.then(({ content: { payload, type } }) => {
+            return request
+                .then(({ id: originalMessageId, nodeId, content: { type, payload } }) => {
 
-                    nodeIdsGottenResponsesFor.push(node.id);
+                    nodeIdsGottenResponsesFor.push(nodeId);
 
                     switch (type) {
                         case 'nodes':
-                            nodes = payload;
-                            nodes.forEach(node => {
+                            holePunchedNodes = payload;
+                            holePunchedNodes.forEach(node => {
 
                                 if (node.id !== this.rpc.rootNode.id) {
-                                    newNodesToPing[node.id] = node;
+                                    newNodesToPing[node.id] = { node, originalMessageId };
                                 }
                             });
                             break;
@@ -121,7 +123,8 @@ class KademliaDHT extends DHT {
                             break;
                     }
 
-                }).catch(err => this.rpc.routingTable.removeNode(node.id));
+                })
+                .catch(err => this.rpc.routingTable.removeNode(node.id));
 
         }))
             .then(() => {
@@ -130,9 +133,10 @@ class KademliaDHT extends DHT {
 
                     if (!this.rpc.routingTable.getNode(nodeId)) {
 
-                        const node = newNodesToPing[nodeId];
+                        const { node, originalMessageId } = newNodesToPing[nodeId];
+                        const messageId = `${nodeId}_${originalMessageId}`;
 
-                        return this.rpc.issuePingRequest(node).catch(err => {});
+                        return this.rpc.issuePingRequest(node, messageId).catch(err => {});
                     }
                 }));
             })
@@ -151,6 +155,48 @@ class KademliaDHT extends DHT {
 
                 return this.findClosestNodes(subjectId, subjectIdKind, nodeIdsGottenResponsesFor);
             });
+    }
+
+    setupTimers() {
+
+        this.holePunchKeepAliveTimer();
+        this.republishKeysTimer();
+        this.refreshBucketsTimer();
+    }
+
+    holePunchKeepAliveTimer() {
+
+        setTimeout(() => {
+
+            this.rpc.routingTable.buckets.forEach(bucket => {
+
+                bucket.nodes.forEach(node => {
+
+                    this.rpc.issueHolePunchKeepAlive(node);
+                });
+            });
+
+            this.holePunchKeepAliveTimer();
+
+        }, 30 * 1000);
+    }
+
+    republishKeysTimer() {
+
+        setTimeout(() => {
+
+            // todo
+
+        }, 60 * 60 * 1000);
+    }
+
+    refreshBucketsTimer() {
+
+        setTimeout(() => {
+
+            this.refreshBuckets();
+
+        }, 60 * 60 * 1000);
     }
 }
 

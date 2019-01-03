@@ -1,6 +1,7 @@
 const http = require('http');
 
 const KeyGenerator = require('../../utils/KeyGenerator');
+const closeServerOnExit = require('../../utils/closeServerOnExit');
 const getPublicIP = require('../../utils/getPublicIP');
 const getSocket = require('../../utils/getSocket');
 
@@ -13,56 +14,48 @@ const fetchHandler = require('./handlers/fetchHandler');
 const saveHandler = require('./handlers/saveHandler');
 
 const keyGenerator = new KeyGenerator();
+const storage = new Storage();
+const kvStore = new KVStore(storage);
 
-Promise.all([
-    getPublicIP(),
-    keyGenerator.getKeys()
-]).then(([ ipAddress, { publicKey, privateKey } ]) => {
+keyGenerator.getKeys()
+    .then(({ publicKey, privateKey }) => {
 
-    const blockServerPost = process.env.BLOCK_SERVER_PORT || 8080;
-    const storage = new Storage();
-    const httpAddress = `${ipAddress}:${blockServerPost}`;
-    const kvStore = new KVStore(storage, httpAddress);
+        const peer = {
+            address: process.env.BOOTSTRAP_ADDRESS,
+            port: process.env.BOOTSTRAP_PORT
+        };
 
-    console.log('Public IP is', ipAddress);
-    console.log('Hosting blocks from', httpAddress);
+        const dht = new DHT(kvStore, publicKey, privateKey);
+        return dht.bootstrap(peer);
+    })
+    .then(dht => {
 
-    return kvStore.host(blockServerPost)
-        .then(() => {
+        const codec = new Codec(storage, dht);
+        const server = http.createServer();
+        const socket = getSocket();
 
-            const connection = {
-                port: process.env.DHT_PORT
-            };
-            const bootstrap = {
-                address: process.env.BOOTSTRAP_ADDRESS,
-                port: process.env.BOOTSTRAP_PORT
-            };
+        server.on('request', (req, res) => {
 
-            const dht = new DHT(kvStore, publicKey, privateKey);
-            return dht.init(connection, bootstrap);
-        })
-        .then(dht => new Codec(storage, dht));
+            switch(req.method) {
+                case 'GET':
+                    fetchHandler(codec, req, res);
+                    break;
+                case 'POST':
+                    saveHandler(codec, req, res);
+                    break;
+                default:
+                    res.statusCode = 501;
+                    res.end('This operation is not supported.');
+                    break;
+            }
+        });
 
-}).then(codec => {
+        server.on('error', err => {
+            console.log(err);
+            server.close();
+        });
 
-    const server = http.createServer();
-    const socket = getSocket();
+        server.listen(socket, () => console.log('Listening on', socket));
 
-    server.on('request', (req, res) => {
-
-        switch(req.method) {
-            case 'GET':
-                fetchHandler(codec, req, res);
-                break;
-            case 'POST':
-                saveHandler(codec, req, res);
-                break;
-            default:
-                res.statusCode = 501;
-                res.end('This operation is not supported.');
-                break;
-        }
+        closeServerOnExit(server);
     });
-
-    server.listen(socket, () => console.log('Listening on', socket));
-});

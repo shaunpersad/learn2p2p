@@ -4,6 +4,7 @@ const https = require('https');
 
 const BlockNotFoundError = require('../../../../../blocks/components/errors/BlockNotFoundError');
 const InvalidBlockError = require('../../../../../blocks/components/errors/InvalidBlockError');
+const closeServerOnExit = require('../../../../../utils/closeServerOnExit');
 
 const KVStore = require('../../KVStore');
 
@@ -15,6 +16,10 @@ class BlockReferenceKVStore extends KVStore {
         this.httpAddress = httpAddress;
         this.server = http.createServer();
         this.server.on('request', this.requestHandler.bind(this));
+        this.server.on('error', err => {
+            console.log(err);
+            this.server.close();
+        });
     }
 
     blockReference(key) {
@@ -67,7 +72,11 @@ class BlockReferenceKVStore extends KVStore {
 
     host(port) {
 
-        return new Promise(resolve => this.server.listen(port, () => resolve()));
+        return new Promise(resolve => {
+
+            this.server.listen(port, () => resolve());
+            closeServerOnExit(this.server);
+        });
     }
 
     downloadFromUrlIntoBlock(url, block) {

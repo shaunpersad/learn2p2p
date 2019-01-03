@@ -8,18 +8,15 @@ const keyGenerator = new KeyGenerator();
 keyGenerator.getKeys()
     .then(({ publicKey, privateKey }) => {
 
-        const connection = {
-            port: process.env.DHT_PORT
-        };
-        const bootstrap = {
+        const peer = {
             address: process.env.BOOTSTRAP_ADDRESS,
             port: process.env.BOOTSTRAP_PORT
         };
 
         const kvStore = new KVStore();
-        const dht = new DHT(kvStore, publicKey, privateKey);
+        const dht = new DHT(kvStore, publicKey, privateKey, process.env.DHT_PORT);
 
-        return dht.init(connection, bootstrap);
+        return dht.bootstrap(peer);
     })
     .then(dht => {
 
@@ -38,8 +35,8 @@ keyGenerator.getKeys()
 
         }).then(result => {
 
-            console.log(result);
-
+            console.log('result', result);
             return dht.fetch(key);
+
         }).then(value => console.log('value', value));
     });

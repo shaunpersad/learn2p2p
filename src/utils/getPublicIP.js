@@ -1,19 +1,47 @@
-const http = require('http');
+const stun = require('stun');
 
-function getPublicIP() {
+const {
+    STUN_BINDING_REQUEST,
+    STUN_ATTR_XOR_MAPPED_ADDRESS,
+    STUN_EVENT_BINDING_RESPONSE,
+} = stun.constants;
 
-    return new Promise((resolve, reject) => {
+const stunServers = [
+    {
+        address: 'stun.l.google.com',
+        port: 19302
+    },
+    {
+        address: 'stun1.l.google.com',
+        port: 19302
+    },
+];
 
-        http.get({ host: 'api.ipify.org' }, res => {
+function getResponse(server) {
 
-            let ip = '';
+    const { port, address } = stunServers.pop();
 
-            res.on('data', chunk => ip+= chunk);
-            res.on('error', reject);
-            res.on('end', () => resolve(ip));
+    const request = stun.createMessage(STUN_BINDING_REQUEST);
 
-        }).on('error', reject);
-    });
+    server.send(request, port, address);
+
 }
 
-module.exports = getPublicIP;
+function getPublicIp() {
+
+    const server = stun.createServer();
+
+    server.on(STUN_EVENT_BINDING_RESPONSE, stunMsg => {
+
+        console.log(stunMsg.getAttribute(STUN_ATTR_XOR_MAPPED_ADDRESS).value);
+
+        if (stunServers.length) {
+            getResponse(server);
+        }
+    });
+
+
+    getResponse(server);
+}
+
+module.exports = getPublicIp;

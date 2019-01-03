@@ -16,6 +16,10 @@ class RoutingTable {
 
     addCandidate(node) {
 
+        if (node.id === this.rootNode.id) {
+            return null;
+        }
+
         const distance = this.constructor.xor(node.id, this.rootNode.id);
         const bucketIndex = this.getBucketIndex(distance);
         const bucket = this.buckets[bucketIndex];

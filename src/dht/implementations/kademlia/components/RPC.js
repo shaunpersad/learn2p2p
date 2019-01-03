@@ -3,48 +3,48 @@ const dgram = require('dgram');
 const MessageProtocol = require('./MessageProtocol');
 const RoutingTable = require('./RoutingTable');
 const Node = require('./Node');
-
+const closeServerOnExit = require('../../../../utils/closeServerOnExit');
 
 class RPC {
 
-    constructor(rootNode, kvStore, { concurrency, numBuckets, nodesPerBucket }) {
+    constructor(rootNode, kvStore, { concurrency, numBuckets, nodesPerBucket }, dhtPort = null) {
 
         this.rootNode = rootNode;
         this.kvStore = kvStore;
         this.concurrency = concurrency;
+        this.dhtPort = dhtPort;
+
         this.messageProtocol = new MessageProtocol(this.rootNode.privateKey);
         this.routingTable = new RoutingTable(this.rootNode, numBuckets, nodesPerBucket);
 
         this.server = dgram.createSocket('udp4');
-        this.server.on('error', this.onError.bind(this));
-        this.server.on('message', this.receiveMessage.bind(this));
 
         this.pendingRequests = {};
         this.numRequests = 0;
     }
 
-    start(port, address) {
+    start() {
 
-        return new Promise(resolve => {
+        return new Promise((resolve, reject) => {
 
-            this.server.on('listening', () => {
+            this.server.on('message', this.receiveMessage.bind(this));
+            this.server.once('error', reject);
+            this.server.once('listening', () => {
 
                 const { address, port } = this.server.address();
                 console.log('Listening on', `${address}:${port}`);
                 resolve();
             });
-            this.server.bind(port, address);
+            this.server.bind(this.dhtPort);
+            closeServerOnExit(this.server);
         });
     }
 
-    onError(err) {
-
-        this.server.close();
-
-        throw err;
-    }
-
     receiveMessage(message, { address, port }) {
+
+        if (!message) {
+            return;
+        }
 
         return this.messageProtocol.deserialize(message)
             .then(({ body, verifySignature }) => {
@@ -54,6 +54,8 @@ class RPC {
                 if ([ id, nodeId, type, content ].includes(undefined)) {
                     throw new Error('Invalid message format.');
                 }
+
+                //console.log('Receiving', type, 'from', nodeId, 'with id', id);
 
                 const node = (type === 'PING' || type === 'PING_REPLY')
                     ? Node.fromPublicKey(content, address, port, nodeId)
@@ -123,6 +125,8 @@ class RPC {
             content
         };
 
+        //console.log('Sending', type, 'to', toNode.id, 'with id', body.id);
+
         const p = (encrypted && !toNode.publicKey)
             ? this.issuePingRequest(toNode).then(({ content }) => toNode.publicKey = content)
             : Promise.resolve();
@@ -169,6 +173,10 @@ class RPC {
         switch (type) {
             case 'PING':
                 return this.handlePingRequest(fromNode, messageId);
+            case 'PING_FORWARD':
+                const { id, address, port, publicKey } = content;
+                const forwardToNode = new Node(id, address, port, publicKey);
+                return this.handlePingForwardRequest(fromNode, forwardToNode, messageId);
             case 'FIND_NODE':
                 return this.handleFindNodeRequest(fromNode, content, messageId);
             case 'STORE':
@@ -178,14 +186,26 @@ class RPC {
         }
     }
 
-    issuePingRequest(toNode) {
+    issuePingRequest(toNode, messageId = null) {
 
-        return this.sendMessageAndWait(2000, toNode, 'PING', this.rootNode.publicKey, false);
+        return this.sendMessageAndWait(2000, toNode, 'PING', this.rootNode.publicKey, false, messageId);
     }
 
     handlePingRequest(fromNode, messageId) {
 
         return this.reply(fromNode, messageId, 'PING', this.rootNode.publicKey);
+    }
+
+    issuePingForwardRequest(toNode, forwardToNode, originalMessageId) {
+
+        return this.sendMessage(toNode, 'PING_FORWARD', forwardToNode.toJSONWithPublicKey(), true, originalMessageId);
+    }
+
+    handlePingForwardRequest(fromNode, forwardToNode, originalMessageId) {
+
+        const messageId = `${this.rootNode.id}_${originalMessageId}`;
+
+        return this.handlePingRequest(forwardToNode, messageId);
     }
 
     issueFindNodeRequest(toNode, nodeId) {
@@ -195,8 +215,8 @@ class RPC {
 
     handleFindNodeRequest(fromNode, nodeId, messageId) {
 
-        const nodes = this.routingTable.getClosestNodes(nodeId);
-        return this.reply(fromNode, messageId, 'FIND_NODE', { type: 'nodes', payload: nodes });
+        return this.getFindResponseContent(fromNode, nodeId, messageId)
+            .then(content => this.reply(fromNode, messageId, 'FIND_NODE', content));
     }
 
     issueStoreRequest(toNode, key, value) {
@@ -230,19 +250,35 @@ class RPC {
 
         return this.kvStore.fetch(key)
             .catch(err => null)
-            .then(value => {
+            .then(value => this.getFindResponseContent(fromNode, key, messageId, value))
+            .then(content => this.reply(fromNode, messageId, 'FIND_VALUE', content));
+    }
 
-                if (!value) {
-                    const nodes = this.routingTable.getClosestNodes(key);
-                    return { type: 'nodes', payload: nodes };
-                }
+    issueHolePunchKeepAlive(toNode) {
 
-                return { type: 'value', payload: value };
-            })
-            .then(content => {
+        this.server.send('', toNode.port, toNode.address);
+    }
 
-                return this.reply(fromNode, messageId, 'FIND_VALUE', content);
-            });
+    getFindResponseContent(fromNode, subjectId, messageId, value = null) {
+
+        if (value) {
+            return Promise.resolve({ type: 'value', payload: value });
+        }
+
+        const nodes = this.routingTable.getClosestNodes(subjectId);
+        const holePunchedNodes = [];
+
+        return Promise.all(nodes.map(node => {
+
+            if (node.id === fromNode.id) {
+                return Promise.resolve();
+            }
+
+            return this.issuePingForwardRequest(node, fromNode, messageId)
+                .then(() => holePunchedNodes.push(node))
+                .catch(err => {});
+
+        })).then(() => ({ type: 'nodes', payload: holePunchedNodes }));
     }
 
     reply(toNode, messageId, type, content) {

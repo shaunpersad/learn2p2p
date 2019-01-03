@@ -18,6 +18,11 @@ class Node {
         };
     }
 
+    toJSONWithPublicKey() {
+
+        return Object.assign(this.toJSON(), { publicKey: this.publicKey });
+    }
+
     static fromPublicKey(publicKey, address, port, nodeId) {
 
         const id = Block.createHash().update(publicKey).digest('hex');
