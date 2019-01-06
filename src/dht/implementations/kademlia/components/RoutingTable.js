@@ -70,10 +70,7 @@ class RoutingTable {
 
         return this.buckets
             .filter(bucket => bucket.nodes.length > 0)
-            .map(bucket => {
-
-                return bucket.nodes[Math.floor(Math.random() * bucket.nodes.length)]; // gets random bucket
-            });
+            .map(bucket => bucket.nodes[Math.floor(Math.random() * bucket.nodes.length)]); // random node
     }
 
     removeNode(nodeId) {

@@ -68,7 +68,7 @@ class MessageProtocol {
             const signature = pieces.shift();
             const bodyJSON = pieces.join('\n');
 
-            const body = JSON.parse(bodyJSON);
+            const body = bodyJSON.length ? JSON.parse(bodyJSON) : '';
 
             return {
                 body,

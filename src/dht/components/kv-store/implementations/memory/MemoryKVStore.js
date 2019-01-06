@@ -1,3 +1,4 @@
+const MemoryPartialValue = require('./components/MemoryPartialValue');
 const KVStore = require('../../KVStore');
 
 class MemoryKVStore extends KVStore {
@@ -12,7 +13,7 @@ class MemoryKVStore extends KVStore {
         const willStore = !this.memory[key];
 
         if (willStore) {
-            this.memory[key] = value;
+            this.memory[key] = `${value}`;
         }
 
         return Promise.resolve(willStore);
@@ -20,6 +21,11 @@ class MemoryKVStore extends KVStore {
 
     fetch(key) {
         return Promise.resolve(this.memory[key] || null);
+    }
+
+    createPartialValue(key, length) {
+
+        return new MemoryPartialValue(key, length, this.memory);
     }
 }
 

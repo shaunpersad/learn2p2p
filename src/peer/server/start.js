@@ -6,7 +6,7 @@ const getPublicIP = require('../../utils/getPublicIP');
 const getSocket = require('../../utils/getSocket');
 
 const Storage = require('../../blocks/components/storage/implementations/filesystem/FilesystemStorage');
-const KVStore = require('../../dht/components/kv-store/implementations/block-reference/BlockReferenceKVStore');
+const KVStore = require('../../dht/components/kv-store/implementations/block/BlockKVStore');
 const DHT = require('../../dht/implementations/kademlia/KademliaDHT');
 const Codec = require('../../blocks/components/codec/Codec');
 

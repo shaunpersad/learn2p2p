@@ -10,10 +10,12 @@ const Block = require('../../Block');
  */
 class Storage {
 
+
     /**
+     * @param {string|null} [intendedHash]
      * @returns {Promise<Block>}
      */
-    createNewBlock() {
+    createNewBlock(intendedHash = null) {
 
         return Promise.resolve(new Block());
     }

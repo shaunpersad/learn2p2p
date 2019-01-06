@@ -82,6 +82,32 @@ class Block {
     }
 
     /**
+     *
+     * @param {number} length
+     * @returns {Promise<Block>} block
+     */
+    reserve(length) {
+
+        this.length = length;
+        return Promise.resolve(this);
+    }
+
+    unReserve() {
+        return Promise.resolve(this);
+    }
+
+    /**
+     *
+     * @param {Buffer|string} chunk
+     * @param {number} index
+     * @returns {Promise<void>}
+     */
+    writeToIndex(chunk, index) {
+
+        return Promise.resolve();
+    }
+
+    /**
      * All hashes are created using SHA256.
      *
      * @returns {Hash}

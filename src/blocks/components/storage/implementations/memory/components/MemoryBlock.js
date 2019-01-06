@@ -1,14 +1,16 @@
 const { Readable, Writable } = require('stream');
+const InvalidBlockError = require('../../../../../components/errors/InvalidBlockError');
 const Block = require('../../../../../Block');
 
 class MemoryBlock extends Block {
 
-    constructor(memory) {
+    constructor(memory, intendedHash = null) {
         super();
 
         this.key = Symbol('key');
+        this.intendedHash = intendedHash;
         this.memory = memory;
-        this.memory[this.key] = '';
+        this.memory[this.key] = (intendedHash ? this.memory[intendedHash] : '') || '';
     }
 
     createWriteStream(start = 0) {
@@ -65,8 +67,14 @@ class MemoryBlock extends Block {
                 .on('finish', () => {
 
                     const hash = extractMetadata[Block.HASH];
-                    this.memory[hash] = this.memory[this.key];
+                    const value = this.memory[this.key];
                     delete this.memory[this.key];
+
+                    if (this.intendedHash && hash !== this.intendedHash) {
+                        return reject(new InvalidBlockError());
+                    }
+
+                    this.memory[hash] = value;
                     this.key = hash;
 
                     resolve(hash);
@@ -76,6 +84,29 @@ class MemoryBlock extends Block {
 
     destroy() {
         delete this.memory[this.key];
+        return Promise.resolve();
+    }
+
+    reserve(length) {
+
+        while(this.memory[this.key].length < length) {
+            this.memory[this.key]+= ' ';
+        }
+        this.memory[this.key] = this.memory[this.key].substring(0, length);
+        this.length = length;
+        return Promise.resolve(this);
+    }
+
+    writeToIndex(chunk, index) {
+
+        let value = this.memory[this.key];
+
+        if (index >= value.length) {
+            return Promise.reject(new Error('This block was not reserved first.'));
+        }
+
+        this.memory[this.key] = value.substring(0, index) + chunk + value.substring(index + chunk.length);
+
         return Promise.resolve();
     }
 }

@@ -15,9 +15,9 @@ class MemoryStorage extends Storage {
         this.memory = {};
     }
 
-    createNewBlock() {
+    createNewBlock(intendedHash = null) {
 
-        return Promise.resolve(new MemoryBlock(this.memory));
+        return Promise.resolve(new MemoryBlock(this.memory, intendedHash));
     }
 
     createBlockReadStream(hash) {

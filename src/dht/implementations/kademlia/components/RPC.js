@@ -40,9 +40,9 @@ class RPC {
         });
     }
 
-    receiveMessage(message, { address, port }) {
+    receiveMessage(message, { address, port, size }) {
 
-        if (!message) {
+        if (!size) {
             return;
         }
 
@@ -55,7 +55,7 @@ class RPC {
                     throw new Error('Invalid message format.');
                 }
 
-                //console.log('Receiving', type, 'from', nodeId, 'with id', id);
+                console.log('Receiving', type, 'from', nodeId, 'with id', id, 'and size', size);
 
                 const node = (type === 'PING' || type === 'PING_REPLY')
                     ? Node.fromPublicKey(content, address, port, nodeId)
@@ -173,16 +173,19 @@ class RPC {
         switch (type) {
             case 'PING':
                 return this.handlePingRequest(fromNode, messageId);
-            case 'PING_FORWARD':
-                const { id, address, port, publicKey } = content;
-                const forwardToNode = new Node(id, address, port, publicKey);
-                return this.handlePingForwardRequest(fromNode, forwardToNode, messageId);
             case 'FIND_NODE':
                 return this.handleFindNodeRequest(fromNode, content, messageId);
             case 'STORE':
                 return this.handleStoreRequest(fromNode, content.key, content.value, messageId);
             case 'FIND_VALUE':
                 return this.handleFindValueRequest(fromNode, content, messageId);
+            /**
+             * Extensions
+             */
+            case 'PING_FORWARD':
+                const { id, address, port, publicKey } = content;
+                const forwardToNode = new Node(id, address, port, publicKey);
+                return this.handlePingForwardRequest(fromNode, forwardToNode, messageId);
         }
     }
 
@@ -194,18 +197,6 @@ class RPC {
     handlePingRequest(fromNode, messageId) {
 
         return this.reply(fromNode, messageId, 'PING', this.rootNode.publicKey);
-    }
-
-    issuePingForwardRequest(toNode, forwardToNode, originalMessageId) {
-
-        return this.sendMessage(toNode, 'PING_FORWARD', forwardToNode.toJSONWithPublicKey(), true, originalMessageId);
-    }
-
-    handlePingForwardRequest(fromNode, forwardToNode, originalMessageId) {
-
-        const messageId = `${this.rootNode.id}_${originalMessageId}`;
-
-        return this.handlePingRequest(forwardToNode, messageId);
     }
 
     issueFindNodeRequest(toNode, nodeId) {
@@ -252,6 +243,118 @@ class RPC {
             .catch(err => null)
             .then(value => this.getFindResponseContent(fromNode, key, messageId, value))
             .then(content => this.reply(fromNode, messageId, 'FIND_VALUE', content));
+    }
+
+    issuePingForwardRequest(toNode, forwardToNode, originalMessageId) {
+
+        return this.sendMessage(toNode, 'PING_FORWARD', forwardToNode.toJSONWithPublicKey(), true, originalMessageId);
+    }
+
+    handlePingForwardRequest(fromNode, forwardToNode, originalMessageId) {
+
+        const messageId = `${this.rootNode.id}_${originalMessageId}`;
+
+        return this.handlePingRequest(forwardToNode, messageId);
+    }
+
+    issuePartialValueRequest(toNode, key, length, only = []) {
+
+        const type = 'PARTIAL_VALUE';
+        const content = { key, only };
+        return this.kvStore.createPartialValue(key)
+            .then(partialValue => partialValue.start())
+            .then(partialValue => {
+
+                return this.sendMessage(toNode, type, content)
+                    .then(messageId => {
+
+                        const chunks = new Set();
+                        const requests = [];
+
+                        return new Promise((resolve, reject) => {
+
+                            let chunksCount = 0;
+                            let t;
+                            const makeTimeout = () => {
+                                t = setTimeout(() => {
+
+                                    if (!chunks.size) {
+                                        return resolve();
+                                    }
+
+                                    if (chunksCount === chunks.size) {
+                                        return reject(new Error('No progress made.'));
+                                    }
+
+                                    chunksCount = chunks.size;
+
+                                    makeTimeout();
+
+                                }, 5 * 1000);
+                            };
+
+                            for(let x = 0; x < length; x+= 1024) {
+
+                                if (!only.length || only.includes(x)) {
+
+                                    chunks.add(x);
+                                    chunksCount++;
+
+                                    const requestId = `${x}_${messageId}`;
+                                    requests.push(requestId);
+                                    this.pendingRequests[requestId] = {
+                                        type,
+                                        resolve: ({ id, content }) => {
+
+                                            const x = parseInt(id.split('_')[0]);
+
+                                            return partialValue.add(content, x)
+                                                .then(() => chunks.delete(x))
+                                                .catch(err => {
+
+                                                    clearTimeout(t);
+                                                    reject(err);
+                                                });
+                                        }
+                                    };
+                                }
+                            }
+
+                        }).catch(err => {
+
+                            requests.forEach(requestId => {
+
+                                if (this.pendingRequests[requestId]) {
+                                    delete this.pendingRequests[requestId];
+                                }
+                            });
+
+                            if (!only.length || chunks.size < only.length) {
+                                return partialValue.pause()
+                                    .then(() => this.issuePartialValueRequest(toNode, key, length, Array.from(chunks)));
+                            }
+
+                            throw err;
+                        });
+                    })
+                    .then(() => partialValue.save())
+                    .catch(err => {
+
+                        return partialValue.destroy().then(() => {
+                            throw err;
+                        });
+                    });
+        });
+    }
+
+    handlePartialValueRequest(fromNode, key, only = [], originalMessageId) {
+
+        this.kvStore.createValueReadStream(key, only, (chunk, index) => {
+
+            const messageId = `${index}_${originalMessageId}`;
+
+            return this.reply(fromNode, messageId, 'PARTIAL_VALUE', chunk);
+        });
     }
 
     issueHolePunchKeepAlive(toNode) {

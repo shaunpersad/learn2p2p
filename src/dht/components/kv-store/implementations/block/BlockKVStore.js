@@ -6,26 +6,20 @@ const BlockNotFoundError = require('../../../../../blocks/components/errors/Bloc
 const InvalidBlockError = require('../../../../../blocks/components/errors/InvalidBlockError');
 const closeServerOnExit = require('../../../../../utils/closeServerOnExit');
 
+const BlockPartialValue = require('./components/BlockPartialValue');
 const KVStore = require('../../KVStore');
 
-class BlockReferenceKVStore extends KVStore {
+class BlockKVStore extends KVStore {
 
-    constructor(storage, httpAddress) {
+    constructor(storage) {
         super();
         this.storage = storage;
-        this.httpAddress = httpAddress;
-        this.server = http.createServer();
-        this.server.on('request', this.requestHandler.bind(this));
-        this.server.on('error', err => {
-            console.log(err);
-            this.server.close();
-        });
     }
 
-    blockReference(key) {
+    createPartialValue(key, length) {
 
-        const url = new URL(`${key}.txt`, this.httpAddress);
-        return url.href;
+        return this.storage.createNewBlock(key)
+            .then(block => new BlockPartialValue(key, length, block));
     }
 
     save(key, value) {
@@ -131,4 +125,4 @@ class BlockReferenceKVStore extends KVStore {
     }
 }
 
-module.exports = BlockReferenceKVStore;
+module.exports = BlockKVStore;

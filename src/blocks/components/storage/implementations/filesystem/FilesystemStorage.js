@@ -21,13 +21,13 @@ class FilesystemStorage extends Storage {
     constructor(dataDirectory = path.resolve(__dirname, '../../../../../../data')) {
         super();
         this.dataDirectory = dataDirectory;
+        this.createBlockPath = this.createBlockPath.bind(this);
     }
 
-    createNewBlock() {
+    createNewBlock(intendedHash = null) {
 
-        const createBlockPath = this.createBlockPath.bind(this);
-
-        return this.createTempFile().then(tempFilePath => new FilesystemBlock(tempFilePath, createBlockPath));
+        return this.createTempFilePath(intendedHash)
+            .then(tempFilePath => new FilesystemBlock(tempFilePath, this.createBlockPath, intendedHash));
     }
 
     createBlockReadStream(hash) {
@@ -57,7 +57,11 @@ class FilesystemStorage extends Storage {
         return path.join(this.dataDirectory, 'private', 'temp', `${id}.txt`);
     }
 
-    createTempFile() {
+    createTempFile(intendedHash = null) {
+
+        if (intendedHash) {
+            return this.createExistingFile(intendedHash);
+        }
 
         return randomBytes(24)
             .then(buf => buf.toString('hex'))
@@ -73,6 +77,20 @@ class FilesystemStorage extends Storage {
                         }
                         return this.createTempFile();
                     });
+            });
+    }
+
+    createExistingFile(intendedHash) {
+
+        const tempFilePath = this.createTempFilePath(intendedHash);
+
+        return writeFile(tempFilePath, '', { flag: 'wx', encoding: 'utf8' }) // write exclusive
+            .then(() => tempFilePath)
+            .catch(err => {
+                if (err.code !== 'EEXIST') {
+                    throw err;
+                }
+                return tempFilePath;
             });
     }
 }

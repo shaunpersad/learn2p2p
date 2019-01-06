@@ -1,3 +1,4 @@
+const PartialValue = require('./components/PartialValue');
 
 class KVStore {
 
@@ -8,6 +9,11 @@ class KVStore {
 
     fetch(key) {
         return Promise.resolve(null);
+    }
+
+    createPartialValue(key, length) {
+
+        return new PartialValue(key);
     }
 
     static get EXISTS() {
