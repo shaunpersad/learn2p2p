@@ -16,7 +16,7 @@ class MemoryPartialValue extends PartialValue {
         return Promise.resolve(this);
     }
 
-    add(chunk, index) {
+    add(chunk, index = 0) {
         this.value = this.value.substring(0, index) + chunk + this.value.substring(index + chunk.length);
         return Promise.resolve();
     }

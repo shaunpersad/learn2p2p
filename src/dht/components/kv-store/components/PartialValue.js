@@ -14,7 +14,7 @@ class PartialValue {
         return Promise.resolve();
     }
 
-    add(chunk, index) {
+    add(chunk, index = 0) {
         return Promise.resolve();
     }
 
@@ -24,6 +24,10 @@ class PartialValue {
 
     destroy() {
         return Promise.resolve();
+    }
+
+    static get SIZE() {
+        return 1024;
     }
 }
 

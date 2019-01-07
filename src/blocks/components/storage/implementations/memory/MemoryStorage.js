@@ -20,12 +20,12 @@ class MemoryStorage extends Storage {
         return Promise.resolve(new MemoryBlock(this.memory, intendedHash));
     }
 
-    createBlockReadStream(hash) {
+    createBlockReadStream(hash, streamOptions = null) {
 
         const storage = this;
         let iterator = 0;
 
-        return new Readable({
+        return new Readable(Object.assign(streamOptions || {}, {
             read(size) {
 
                 if (!storage.memory[hash]) {
@@ -36,12 +36,12 @@ class MemoryStorage extends Storage {
                 iterator+= size;
                 this.push(chunk || null);
             }
-        });
+        }));
     }
 
-    blockExists(hash) {
+    getBlockLength(hash) {
 
-        return Promise.resolve(this.memory[hash] !== undefined);
+        return Promise.resolve(this.memory[hash] ? this.memory[hash].length : 0);
     }
 }
 

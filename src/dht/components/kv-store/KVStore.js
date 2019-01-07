@@ -1,19 +1,29 @@
+const Value = require('./components/Value');
 const PartialValue = require('./components/PartialValue');
 
 class KVStore {
 
-    save(key, value) {
-
-        return Promise.resolve(false);
-    }
-
-    fetch(key) {
-        return Promise.resolve(null);
+    getValue(key) {
+        return Promise.resolve(new Value());
     }
 
     createPartialValue(key, length) {
 
-        return new PartialValue(key);
+        return Promise.resolve(new PartialValue(key, length));
+    }
+
+    forEachValueChunk(key, only, forEachCallback) {
+
+        return Promise.resolve();
+    }
+
+    saveRawValueData(key, data) {
+
+        return this
+            .createPartialValue(key, data.length)
+            .then(partialValue => partialValue.start())
+            .then(partialValue => partialValue.add(data))
+            .then(partialValue => partialValue.save());
     }
 
     static get EXISTS() {

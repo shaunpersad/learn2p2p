@@ -15,7 +15,7 @@ class BlockPartialValue extends PartialValue {
         this.block.unReserve();
     }
 
-    add(chunk, index) {
+    add(chunk, index = 0) {
         return this.block.writeToIndex(chunk, index);
     }
 

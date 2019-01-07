@@ -1,5 +1,6 @@
 const dgram = require('dgram');
 
+const Value = require('../../../components/kv-store/components/Value');
 const MessageProtocol = require('./MessageProtocol');
 const RoutingTable = require('./RoutingTable');
 const Node = require('./Node');
@@ -172,11 +173,11 @@ class RPC {
 
         switch (type) {
             case 'PING':
-                return this.handlePingRequest(fromNode, messageId);
+                return this.handlePingRequest(fromNode, content, messageId);
             case 'FIND_NODE':
                 return this.handleFindNodeRequest(fromNode, content, messageId);
             case 'STORE':
-                return this.handleStoreRequest(fromNode, content.key, content.value, messageId);
+                return this.handleStoreRequest(fromNode, content, messageId);
             case 'FIND_VALUE':
                 return this.handleFindValueRequest(fromNode, content, messageId);
             /**
@@ -186,6 +187,9 @@ class RPC {
                 const { id, address, port, publicKey } = content;
                 const forwardToNode = new Node(id, address, port, publicKey);
                 return this.handlePingForwardRequest(fromNode, forwardToNode, messageId);
+
+            default:
+                return Promise.resolve();
         }
     }
 
@@ -194,7 +198,7 @@ class RPC {
         return this.sendMessageAndWait(2000, toNode, 'PING', this.rootNode.publicKey, false, messageId);
     }
 
-    handlePingRequest(fromNode, messageId) {
+    handlePingRequest(fromNode, theirPublicKey, messageId) {
 
         return this.reply(fromNode, messageId, 'PING', this.rootNode.publicKey);
     }
@@ -215,21 +219,16 @@ class RPC {
         return this.sendMessageAndWait(10000, toNode, 'STORE', { key, value });
     }
 
-    handleStoreRequest(fromNode, key, value, messageId) {
+    handleStoreRequest(fromNode, { key, value: { type, data } }, messageId) {
 
-        const { EXISTS, WILL_NOT_STORE, STORED } = this.kvStore.constructor;
+        const p = type === Value.TYPE_RAW
+            ? this.kvStore.saveRawValueData(key, data)
+            : this.issuePartialValueRequest(fromNode, key, data);
 
-        return this.kvStore.save(key, value)
-            .then(stored => {
-
-                const content = stored ? STORED : EXISTS;
-
-                return this.reply(fromNode, messageId, 'STORE', content);
-            })
-            .catch(err => {
-
-                return this.reply(fromNode, messageId, 'STORE', WILL_NOT_STORE);
-            });
+        return p
+            .then(() => true)
+            .catch(err => false)
+            .then(content => this.reply(fromNode, messageId, 'STORE', content));
     }
 
     issueFindValueRequest(toNode, key) {
@@ -239,7 +238,7 @@ class RPC {
 
     handleFindValueRequest(fromNode, key, messageId) {
 
-        return this.kvStore.fetch(key)
+        return this.kvStore.getValue(key)
             .catch(err => null)
             .then(value => this.getFindResponseContent(fromNode, key, messageId, value))
             .then(content => this.reply(fromNode, messageId, 'FIND_VALUE', content));
@@ -349,12 +348,13 @@ class RPC {
 
     handlePartialValueRequest(fromNode, key, only = [], originalMessageId) {
 
-        this.kvStore.createValueReadStream(key, only, (chunk, index) => {
+        return this.kvStore.forEachValueChunk(key, only, (chunk, index) => {
 
             const messageId = `${index}_${originalMessageId}`;
 
             return this.reply(fromNode, messageId, 'PARTIAL_VALUE', chunk);
-        });
+
+        }).catch(err => {});
     }
 
     issueHolePunchKeepAlive(toNode) {

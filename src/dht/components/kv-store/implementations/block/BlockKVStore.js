@@ -1,11 +1,6 @@
-const { URL } = require('url');
-const http = require('http');
-const https = require('https');
-
-const BlockNotFoundError = require('../../../../../blocks/components/errors/BlockNotFoundError');
-const InvalidBlockError = require('../../../../../blocks/components/errors/InvalidBlockError');
-const closeServerOnExit = require('../../../../../utils/closeServerOnExit');
-
+const Value = require('../../components/Value');
+const PartialValue = require('../../components/PartialValue');
+const PartialValueWriteStream = require('../../components/PartialValueWriteStream');
 const BlockPartialValue = require('./components/BlockPartialValue');
 const KVStore = require('../../KVStore');
 
@@ -16,112 +11,46 @@ class BlockKVStore extends KVStore {
         this.storage = storage;
     }
 
+    getValue(key) {
+
+        return new Promise((resolve, reject) => {
+
+            let currentChunk = null;
+            let length = 0;
+
+            this.storage.createBlockReadStream(key)
+                .on('error', reject)
+                .on('data', chunk => {
+
+                    currentChunk = chunk;
+                    length+= chunk.length;
+                })
+                .on('end', () => {
+
+                    const type = length > PartialValue.SIZE ? Value.TYPE_PARTIAL : Value.TYPE_RAW;
+                    const data = type === Value.TYPE_RAW ? currentChunk : currentChunk.length;
+
+                    resolve(type, data);
+                });
+        });
+    }
+
     createPartialValue(key, length) {
 
         return this.storage.createNewBlock(key)
             .then(block => new BlockPartialValue(key, length, block));
     }
 
-    save(key, value) {
-
-        return this.storage.blockExists(key)
-            .then(exists => {
-
-                if (exists) {
-                    return false;
-                }
-
-                return this.storage.createNewBlock()
-                    .then(block => {
-
-                        const url = new URL(value);
-
-                        return this.downloadFromUrlIntoBlock(url, block)
-                            .then(() => block.save())
-                            .then(hash => {
-
-                                if (hash !== key) {
-                                    return block.destroy().then(() => {
-                                        throw new InvalidBlockError();
-                                    });
-                                }
-                                return true;
-                            });
-                    });
-            });
-    }
-
-    fetch(key) {
-
-        return this.storage.blockExists(key)
-            .then(exists => {
-
-                if (!exists) {
-                    return null;
-                }
-
-                return this.blockReference(key);
-            });
-    }
-
-    host(port) {
-
-        return new Promise(resolve => {
-
-            this.server.listen(port, () => resolve());
-            closeServerOnExit(this.server);
-        });
-    }
-
-    downloadFromUrlIntoBlock(url, block) {
+    forEachValueChunk(key, only, forEachCallback) {
 
         return new Promise((resolve, reject) => {
 
-            const protocol = url.protocol === 'https:' ? https : http;
-            protocol.get(url, res => {
-
-                const { statusCode } = res;
-
-                if (statusCode !== 200) {
-                    return reject(new Error('Request not successful.'));
-                }
-
-                res.pipe(block.createWriteStream())
-                    .on('error', reject)
-                    .on('end', () => resolve());
-
-            }).on('error', reject);
+            this.storage.createBlockReadStream(key)
+                .on('error', reject)
+                .pipe(new PartialValueWriteStream(only, forEachCallback))
+                .on('error', reject)
+                .on('finish', resolve);
         });
-    }
-
-    requestHandler(req, res) {
-
-        if (req.method !== 'GET') {
-            res.statusCode = 501;
-            return res.end();
-        }
-
-        const [ hash ] = req.url.split('/').filter(piece => !!piece);
-
-        if (!hash) {
-            res.statusCode = 400;
-            return res.end();
-        }
-
-        res.setHeader('ETag', hash);
-        res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
-
-        this.storage.createBlockReadStream(hash)
-            .on('error', err => {
-
-                if (!res.headersSent) {
-                    res.removeHeader('ETag');
-                    res.removeHeader('Cache-Control');
-                    res.statusCode = (err instanceof BlockNotFoundError) ? 404 : 500;
-                }
-                res.end();
-            })
-            .pipe(res);
     }
 }
 

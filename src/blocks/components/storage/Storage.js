@@ -22,20 +22,20 @@ class Storage {
 
     /**
      * @param {string} hash
+     * @param {{}|null} [streamOptions]
      * @returns {Readable}
      */
-    createBlockReadStream(hash) {
+    createBlockReadStream(hash, streamOptions = null) {
 
-        return new Readable();
+        return new Readable(streamOptions);
     }
 
     /**
      * @param {string} hash
-     * @returns {Promise<boolean>}
+     * @returns {Promise<number>}
      */
-    blockExists(hash) {
-
-        return Promise.resolve(false);
+    getBlockLength(hash) {
+        return Promise.resolve(0);
     }
 }
 

@@ -1,6 +1,6 @@
 const { Readable } = require('stream');
 const Base64 = require('b64');
-
+const StringStream = require('../../../utils/StringStream');
 const DataStitcher = require('./components/DataStitcher');
 
 const BlockNotFoundError = require('../errors/BlockNotFoundError');
@@ -123,7 +123,7 @@ class Codec {
                         return reject(new Error('Links are bigger than the block size.'));
                     }
 
-                    this.constructor.createStringStream(links)
+                    (new StringStream(links))
                         .on('error', reject)
                         .pipe(rootBlock.createWriteStream(length)) // start writing at the end of the root block
                         .on('error', reject)
@@ -239,24 +239,6 @@ class Codec {
                 .pipe(extractMetadata)
                 .on('error', reject)
                 .on('finish', () => resolve(extractMetadata[Block.LINKS]));
-        });
-    }
-
-    /**
-     *
-     * @param {string} content
-     * @returns {Readable}
-     */
-    static createStringStream(content) {
-
-        return new Readable({
-            read(size) {
-                this.push(content.substring(0, size));
-
-                if (!(content = content.substring(size))) {
-                    this.push(null);
-                }
-            }
         });
     }
 }

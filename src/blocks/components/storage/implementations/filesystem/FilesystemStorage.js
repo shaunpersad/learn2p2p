@@ -30,9 +30,9 @@ class FilesystemStorage extends Storage {
             .then(tempFilePath => new FilesystemBlock(tempFilePath, this.createBlockPath, intendedHash));
     }
 
-    createBlockReadStream(hash) {
+    createBlockReadStream(hash, streamOptions = null) {
 
-        return new BlockReadStream(this.createBlockPath(hash));
+        return new BlockReadStream(this.createBlockPath(hash), streamOptions);
     }
 
     blockExists(hash) {
