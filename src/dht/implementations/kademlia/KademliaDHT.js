@@ -1,4 +1,5 @@
 const Value = require('../../components/kv-store/components/Value');
+const ValueNotFoundError = require('../../components/errors/ValueNotFoundError');
 const RPC = require('./components/RPC');
 const Node = require('./components/Node');
 const DHT = require('../../DHT');
@@ -87,19 +88,30 @@ class KademliaDHT extends DHT {
      */
     download(key) {
 
-        return this.findClosestNodes(key, 'key').then(({ value, node }) => {
+        return this.findClosestNodes(key, 'key').then(({ value, nodesWithValues }) => {
 
-            let p = Promise.resolve();
-            switch (value.type) {
-                case Value.TYPE_PARTIAL:
-                    p = this.rpc.issuePartialValueRequest(node, key, value.data);
-                    break;
-                case Value.TYPE_RAW:
-                    p = this.kvStore.saveRawValueData(key, value.data);
-                    break;
+            const getValue = node => {
 
-            }
-            return p.then(() => value);
+                let p = Promise.resolve();
+                switch (value.type) {
+                    case Value.TYPE_PARTIAL:
+                        p = this.rpc.issuePartialValueRequest(node, key, value.data);
+                        break;
+                    case Value.TYPE_RAW:
+                        p = this.kvStore.saveRawValueData(key, value.data);
+                        break;
+
+                }
+
+                return p.then(() => value).catch(err => {
+                    if (nodesWithValues.length) {
+                        return getValue(nodesWithValues.pop());
+                    }
+                    throw err;
+                });
+            };
+
+            return getValue(nodesWithValues.pop());
         });
     }
 
@@ -116,7 +128,7 @@ class KademliaDHT extends DHT {
         const newNodesToPing = {};
 
         if (!closestPendingNodes.length) {
-            return subjectIdKind === 'node' ? closestNodes : null;
+            return subjectIdKind === 'node' ? Promise.resolve(closestNodes) : Promise.reject(new ValueNotFoundError());
         }
 
         let holePunchedNodes = null;
@@ -171,7 +183,7 @@ class KademliaDHT extends DHT {
 
                 if (value && subjectIdKind === 'key') {
 
-                    return { value: new Value(value.type, value.data), node: nodesWithValues[0] };
+                    return { value: new Value(value.type, value.data), nodesWithValues };
 
                     // const nodeToCache = closestPendingNodes.find(node => !nodesWithValues.includes(node.id));
                     //

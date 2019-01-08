@@ -1,5 +1,5 @@
 const dgram = require('dgram');
-
+const PartialValue = require('../../../components/kv-store/components/PartialValue');
 const Value = require('../../../components/kv-store/components/Value');
 const MessageProtocol = require('./MessageProtocol');
 const RoutingTable = require('./RoutingTable');
@@ -89,9 +89,10 @@ class RPC {
                             }
                         }),
                         Promise.resolve().then(() => {
-
-                            //console.log('handling message', id);
-                            //console.log('handling received message of type', type);
+                            //
+                            // console.log('handling message', id);
+                            // console.log('handling received message of type', type);
+                            // console.log('pending request', this.pendingRequests[id]);
 
                             if (this.pendingRequests[id] && type === `${this.pendingRequests[id].type}_REPLY`) {
 
@@ -126,14 +127,14 @@ class RPC {
             content
         };
 
-        //console.log('Sending', type, 'to', toNode.id, 'with id', body.id);
+        console.log('Sending', type, 'to', toNode.id, 'with id', body.id, 'encrypted', encrypted);
 
         const p = (encrypted && !toNode.publicKey)
             ? this.issuePingRequest(toNode).then(({ content }) => toNode.publicKey = content)
             : Promise.resolve();
 
         return p
-            .then(() => this.messageProtocol.serialize(body, toNode.publicKey))
+            .then(() => this.messageProtocol.serialize(body, encrypted ? toNode.publicKey : null))
             .then(message => {
 
                 return new Promise((resolve, reject) => {
@@ -298,7 +299,7 @@ class RPC {
                                 }, 5 * 1000);
                             };
 
-                            for(let x = 0; x < length; x+= 1024) {
+                            for(let x = 0; x < length; x+= PartialValue.SIZE) {
 
                                 if (!only.length || only.includes(x)) {
 
@@ -314,7 +315,13 @@ class RPC {
                                             const x = parseInt(id.split('_')[0]);
 
                                             return partialValue.add(content, x)
-                                                .then(() => chunks.delete(x))
+                                                .then(() => {
+                                                    chunks.delete(x);
+                                                    if (!chunks.size) {
+                                                        clearTimeout(t);
+                                                        resolve();
+                                                    }
+                                                })
                                                 .catch(err => {
 
                                                     clearTimeout(t);
@@ -325,6 +332,8 @@ class RPC {
                                 }
                             }
 
+                            makeTimeout();
+
                         }).catch(err => {
 
                             requests.forEach(requestId => {
@@ -333,6 +342,8 @@ class RPC {
                                     delete this.pendingRequests[requestId];
                                 }
                             });
+
+                            console.log('chunks.size', chunks.size, 'only.length', only.length);
 
                             if (!only.length || chunks.size < only.length) {
                                 return partialValue.pause()
@@ -354,11 +365,12 @@ class RPC {
 
     handlePartialValueRequest(fromNode, { key, only = [] }, originalMessageId) {
 
+        console.log({ only });
         return this.kvStore.forEachPartialValueChunk(key, only, (chunk, index) => {
 
             const messageId = `${index}_${originalMessageId}`;
 
-            return this.reply(fromNode, messageId, 'PARTIAL_VALUE', chunk);
+            return this.reply(fromNode, messageId, 'PARTIAL_VALUE', chunk, false);
 
         }).catch(err => {});
     }
@@ -390,9 +402,9 @@ class RPC {
         })).then(() => ({ type: 'nodes', payload: holePunchedNodes }));
     }
 
-    reply(toNode, messageId, type, content) {
+    reply(toNode, messageId, type, content, encrypted = true) {
 
-        return this.sendMessage(toNode, `${type}_REPLY`, content, type !== 'PING', messageId);
+        return this.sendMessage(toNode, `${type}_REPLY`, content, encrypted, messageId);
     }
 }
 

@@ -18,19 +18,21 @@ class PartialValueWriteStream extends Writable {
         this[ONLY] = (only || []).sort();
         this[CHUNK_INDEX] = 0;
         this[ONLY_INDEX] = 0;
-        this[ALL] = this[ONLY].length > 0;
+        this[ALL] = this[ONLY].length === 0;
         this[REMAINING] = '';
         this[FOR_EACH_CALLBACK] = forEachCallback;
     }
 
     [SEND](chunk) {
 
-        const index = this[CHUNK_INDEX]++;
+        const index = this[CHUNK_INDEX];
+        this[CHUNK_INDEX]+= SIZE;
 
         if (this[ALL] || this[ONLY][this[ONLY_INDEX]] === index) {
             this[ONLY_INDEX]++;
             return this[FOR_EACH_CALLBACK](chunk, index);
         }
+        return Promise.resolve();
     }
 
     _write(chunk, encoding, callback) {
