@@ -15,10 +15,9 @@ const Block = require('../../Block');
  */
 class Codec {
 
-    constructor(storage, dht) {
+    constructor(storage) {
 
         this.storage = storage;
-        this.dht = dht;
     }
 
     /**
@@ -140,67 +139,6 @@ class Codec {
 
             return hash;
         });
-    }
-
-    /**
-     * Starts at the root block,
-     * uploads the block's location into the DHT,
-     * then recursively calls itself on the block's links.
-     * Once there are no more links to operate on, we're done.
-     *
-     * At the end, all block locations should be uploaded to the DHT.
-     *
-     * @param {string} hash
-     * @returns {Promise<string>}
-     */
-    upload(hash) {
-
-        return this.dht.kvStore.fetch(hash) // get the block's location out of the DHT's local KV store
-            .then(value => this.dht.save(hash, value)) // save the block's location into the DHT
-            .then(() => this.getBlockLinks(hash))
-            .then(links => {
-
-                if (!links.length) {
-                    return hash;
-                }
-
-                return Promise.all(links.map(hash => this.upload(hash)));
-            });
-    }
-
-    /**
-     * Starts at the root block,
-     * checks if it exists in storage,
-     * if it does, recursively call itself on it's links.
-     * If it does not, download it from the DHT, then
-     * retry the download.
-     *
-     * At the end, all blocks should be in storage.
-     *
-     * @param {string} hash
-     * @returns {Promise}
-     */
-    download(hash) {
-
-        return this.getBlockLinks(hash)
-            .then(links => {
-
-                if (!links.length) {
-                    return hash;
-                }
-
-                return Promise.all(links.map(hash => this.download(hash)));
-            })
-            .catch(err => {
-
-                if (!(err instanceof BlockNotFoundError)) {
-                    throw err;
-                }
-
-                return this.dht.fetch(hash)
-                    .then(value => this.dht.kvStore.save(hash, value))
-                    .then(() => this.download(hash));
-            });
     }
 
     /**

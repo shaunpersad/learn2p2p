@@ -1,7 +1,5 @@
-const StringStream = require('../../../../../utils/StringStream');
-const Value = require('../../components/Value');
-const PartialValue = require('../../components/PartialValue');
-const PartialValueWriteStream = require('../../components/PartialValueWriteStream');
+const { Readable, Writable } = require('stream');
+const ValueNotFoundError = require('../../../../components/errors/ValueNotFoundError');
 const MemoryPartialValue = require('./components/MemoryPartialValue');
 const KVStore = require('../../KVStore');
 
@@ -12,37 +10,49 @@ class MemoryKVStore extends KVStore {
         this.memory = {};
     }
 
-    getValue(key) {
+    createDataReadStream(key, streamOptions = null) {
 
-        if (!this.memory[key]) {
-            return Promise.resolve(null);
-        }
+        const kvStore = this;
+        let iterator = 0;
 
-        const type = this.memory[key].length > PartialValue.SIZE ? Value.TYPE_PARTIAL : Value.TYPE_RAW;
-        const data = type === Value.TYPE_RAW ? this.memory[key] : this.memory[key].length;
+        return new Readable(Object.assign(streamOptions || {}, {
+            read(size) {
 
-        return Promise.resolve(new Value(type, data));
+                if (!kvStore.memory[key]) {
+                    return this.emit('error', new ValueNotFoundError()); // throw BlockNotFoundError if does not exist.
+                }
+
+                const chunk = kvStore.memory[key].substring(iterator, iterator + size);
+                iterator+= size;
+                this.push(chunk || null);
+            }
+        }));
+    }
+
+    createDataWriteStream(key) {
+
+        const memory = this.memory;
+        let data = '';
+
+        return new Writable({
+            decodeStrings: false,
+            write(chunk, encoding, callback) {
+
+                data+= chunk;
+
+                callback();
+            },
+            final(callback) {
+
+                memory[key] = data;
+                callback();
+            }
+        });
     }
 
     createPartialValue(key, length) {
 
         return Promise.resolve(new MemoryPartialValue(key, length, this.memory));
-    }
-
-    forEachValueChunk(key, only, forEachCallback) {
-
-        return new Promise((resolve, reject) => {
-
-            if (!this.memory[key]) {
-                return reject(new Error('Value for this key does not exist.'));
-            }
-
-            (new StringStream(this.memory[key]))
-                .on('error', reject)
-                .pipe(new PartialValueWriteStream(only, forEachCallback))
-                .on('error', reject)
-                .on('finish', resolve);
-        });
     }
 }
 

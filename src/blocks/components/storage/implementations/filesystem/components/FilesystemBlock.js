@@ -9,7 +9,8 @@ const rename = util.promisify(fs.rename);
 const removeFile = util.promisify(fs.unlink);
 
 const InvalidBlockError = require('../../../../../components/errors/InvalidBlockError');
-const BlockWriteStream = require('./BlockWriteStream');
+const WrappedWriteStream = require('../../../../../../utils/WrappedWriteStream');
+
 const Block = require('../../../../../Block');
 
 class FilesystemBlock extends Block {
@@ -25,7 +26,10 @@ class FilesystemBlock extends Block {
 
     createWriteStream(start = 0) {
 
-        return new BlockWriteStream(this.filePath, start, this);
+        const initializeSource = () => fs.createWriteStream(this.filePath, { flags: 'r+', start });
+        const onWrite = chunk => this.length+= chunk.length;
+
+        return new WrappedWriteStream(initializeSource, onWrite);
     }
 
     createReadStream(start = 0, end = this.length) {

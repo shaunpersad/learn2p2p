@@ -6,8 +6,10 @@ const writeFile = util.promisify(fs.writeFile);
 const access = util.promisify(fs.access);
 const randomBytes = util.promisify(crypto.randomBytes);
 
+const WrappedReadStream = require('../../../../../utils/WrappedReadStream');
+const BlockNotFoundError = require('../../../../components/errors/BlockNotFoundError');
+
 const FilesystemBlock = require('./components/FilesystemBlock');
-const BlockReadStream = require('./components/BlockReadStream');
 
 const Storage = require('../../Storage');
 
@@ -32,7 +34,16 @@ class FilesystemStorage extends Storage {
 
     createBlockReadStream(hash, streamOptions = null) {
 
-        return new BlockReadStream(this.createBlockPath(hash), streamOptions);
+        const source = fs.createReadStream(this.createBlockPath(hash));
+        const errorTransform = err => {
+
+            if (err.code === 'ENOENT') { // if the file does not exist, throw our own BlockNotFoundError error.
+                err = new BlockNotFoundError();
+            }
+            return err;
+        };
+
+        return new WrappedReadStream(source, errorTransform, streamOptions);
     }
 
     blockExists(hash) {

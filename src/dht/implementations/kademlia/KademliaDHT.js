@@ -1,6 +1,7 @@
-const DHT = require('../../DHT');
+const Value = require('../../components/kv-store/components/Value');
 const RPC = require('./components/RPC');
 const Node = require('./components/Node');
+const DHT = require('../../DHT');
 
 class KademliaDHT extends DHT {
 
@@ -47,12 +48,20 @@ class KademliaDHT extends DHT {
             .then(() => this);
     }
 
-    save(key, value) {
+    /**
+     *
+     * @param {string} key
+     * @returns {Promise<{fail: number, success: number}>}
+     */
+    upload(key) {
 
-        return this.findClosestNodes(key, 'node').then(nodes => {
+        return Promise.all([
+            this.kvStore.getValue(key),
+            this.findClosestNodes(key, 'node')
+
+        ]).then(([ value, nodes ]) => {
 
             const result = { success: 0, fail: 0 };
-            const { WILL_NOT_STORE } = this.rpc.kvStore.constructor;
 
             return Promise.all(nodes.map(node => {
 
@@ -60,20 +69,38 @@ class KademliaDHT extends DHT {
                     .catch(err => {
 
                         this.rpc.routingTable.removeNode(node.id);
-                        return { content: WILL_NOT_STORE };
+                        return { content: false };
                     })
-                    .then(({ content: status }) => {
+                    .then(({ content: stored }) => {
 
-                        status === this.rpc.kvStore.constructor.WILL_NOT_STORE ? result.fail++ : result.success++;
+                        stored ? result.success++ : result.fail++;
                     });
 
             })).then(() => result);
         });
     }
 
-    fetch(key) {
+    /**
+     *
+     * @param {string} key
+     * @returns {Promise<Value>}
+     */
+    download(key) {
 
-        return this.findClosestNodes(key, 'key');
+        return this.findClosestNodes(key, 'key').then(({ value, node }) => {
+
+            let p = Promise.resolve();
+            switch (value.type) {
+                case Value.TYPE_PARTIAL:
+                    p = this.rpc.issuePartialValueRequest(node, key, value.data);
+                    break;
+                case Value.TYPE_RAW:
+                    p = this.kvStore.saveRawValueData(key, value.data);
+                    break;
+
+            }
+            return p.then(() => value);
+        });
     }
 
     refreshBuckets() {
@@ -144,13 +171,13 @@ class KademliaDHT extends DHT {
 
                 if (value && subjectIdKind === 'key') {
 
-                    const nodeToCache = closestPendingNodes.find(node => !nodesWithValues.includes(node.id));
+                    return { value: new Value(value.type, value.data), node: nodesWithValues[0] };
 
-                    const p = nodeToCache
-                        ? this.rpc.issueStoreRequest(nodeToCache, subjectId, value).catch(console.log)
-                        : Promise.resolve();
-
-                    return p.then(() => value);
+                    // const nodeToCache = closestPendingNodes.find(node => !nodesWithValues.includes(node.id));
+                    //
+                    // const p = nodeToCache
+                    //     ? this.rpc.issueStoreRequest(nodeToCache, subjectId, value).catch(console.log)
+                    //     : Promise.resolve();
                 }
 
                 return this.findClosestNodes(subjectId, subjectIdKind, nodeIdsGottenResponsesFor);

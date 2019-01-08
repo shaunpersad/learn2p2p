@@ -1,3 +1,4 @@
+const Value = require('./components/kv-store/components/Value');
 class DHT {
 
     constructor(kvStore) {
@@ -5,15 +6,19 @@ class DHT {
     }
 
     bootstrap() {
-        throw new Error('Please override the init() method.');
+        return Promise.resolve(this);
     }
 
-    save(key, value) {
-        throw new Error('Please override the save(key, value) method.');
+    /**
+     * @param {string} key
+     * @returns {Promise<{fail: number, success: number}>}
+     */
+    upload(key) {
+        return Promise.resolve({ success: 0, fail: 0 });
     }
 
-    fetch(key) {
-        throw new Error('Please override the fetch(key) method.');
+    download(key) {
+        return this.kvStore.getValue(key);
     }
 }
 

@@ -10,8 +10,9 @@ const KVStore = require('../../dht/components/kv-store/implementations/block/Blo
 const DHT = require('../../dht/implementations/kademlia/KademliaDHT');
 const Codec = require('../../blocks/components/codec/Codec');
 
-const fetchHandler = require('./handlers/fetchHandler');
-const saveHandler = require('./handlers/saveHandler');
+const DefaultEndpoint = require('./Endpoint');
+const FetchEndpoint = require('./endpoints/FetchEndpoint');
+const SaveEndpoint = require('./endpoints/SaveEndpoint');
 
 const keyGenerator = new KeyGenerator();
 const storage = new Storage();
@@ -30,24 +31,24 @@ keyGenerator.getKeys()
     })
     .then(dht => {
 
-        const codec = new Codec(storage, dht);
+        const codec = new Codec(storage);
         const server = http.createServer();
         const socket = getSocket();
+        let Endpoint = DefaultEndpoint;
 
         server.on('request', (req, res) => {
 
             switch(req.method) {
                 case 'GET':
-                    fetchHandler(codec, req, res);
+                    Endpoint = FetchEndpoint;
                     break;
                 case 'POST':
-                    saveHandler(codec, req, res);
-                    break;
-                default:
-                    res.statusCode = 501;
-                    res.end('This operation is not supported.');
+                    Endpoint = SaveEndpoint;
                     break;
             }
+
+            const endpoint = new Endpoint(codec, dht);
+            endpoint.handler(req, res);
         });
 
         server.on('error', err => {

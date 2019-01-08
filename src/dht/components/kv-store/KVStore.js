@@ -1,10 +1,19 @@
+const { Readable, Writable } = require('stream');
+const StringStream = require('../../../utils/StringStream');
 const Value = require('./components/Value');
 const PartialValue = require('./components/PartialValue');
+const PartialValueWriteStream = require('./components/PartialValueWriteStream');
 
 class KVStore {
 
-    getValue(key) {
-        return Promise.resolve(new Value());
+    createDataReadStream(key, streamOptions = null) {
+
+        return new Readable(streamOptions);
+    }
+
+    createDataWriteStream(key) {
+
+        return new Writable();
     }
 
     createPartialValue(key, length) {
@@ -12,30 +21,38 @@ class KVStore {
         return Promise.resolve(new PartialValue(key, length));
     }
 
-    forEachValueChunk(key, only, forEachCallback) {
+    /**
+     *
+     * @param {string} key
+     * @returns {Promise<Value>}
+     */
+    getValue(key) {
 
-        return Promise.resolve();
+        return Value.createFromReadStream(this.createDataReadStream(key));
     }
 
     saveRawValueData(key, data) {
 
-        return this
-            .createPartialValue(key, data.length)
-            .then(partialValue => partialValue.start())
-            .then(partialValue => partialValue.add(data))
-            .then(partialValue => partialValue.save());
+        return new Promise((resolve, reject) => {
+
+            (new StringStream(data))
+                .on('error', reject)
+                .pipe(this.createDataWriteStream(key))
+                .on('error', reject)
+                .on('finish', resolve);
+        });
     }
 
-    static get EXISTS() {
-        return 0;
-    }
+    forEachPartialValueChunk(key, only, forEachCallback) {
 
-    static get WILL_NOT_STORE() {
-        return -1;
-    }
+        return new Promise((resolve, reject) => {
 
-    static get STORED() {
-        return 1;
+            this.createDataReadStream(key)
+                .on('error', reject)
+                .pipe(new PartialValueWriteStream(only, forEachCallback))
+                .on('error', reject)
+                .on('finish', resolve);
+        });
     }
 }
 

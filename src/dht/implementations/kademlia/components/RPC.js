@@ -188,6 +188,9 @@ class RPC {
                 const forwardToNode = new Node(id, address, port, publicKey);
                 return this.handlePingForwardRequest(fromNode, forwardToNode, messageId);
 
+            case 'PARTIAL_VALUE':
+                return this.handlePartialValueRequest(fromNode, content, messageId);
+
             default:
                 return Promise.resolve();
         }
@@ -249,11 +252,12 @@ class RPC {
         return this.sendMessage(toNode, 'PING_FORWARD', forwardToNode.toJSONWithPublicKey(), true, originalMessageId);
     }
 
-    handlePingForwardRequest(fromNode, forwardToNode, originalMessageId) {
+    handlePingForwardRequest(fromNode, { id, address, port, publicKey }, originalMessageId) {
 
+        const forwardToNode = new Node(id, address, port, publicKey);
         const messageId = `${this.rootNode.id}_${originalMessageId}`;
 
-        return this.handlePingRequest(forwardToNode, messageId);
+        return this.handlePingRequest(forwardToNode, publicKey, messageId);
     }
 
     issuePartialValueRequest(toNode, key, length, only = []) {
@@ -346,9 +350,9 @@ class RPC {
         });
     }
 
-    handlePartialValueRequest(fromNode, key, only = [], originalMessageId) {
+    handlePartialValueRequest(fromNode, { key, only = [] }, originalMessageId) {
 
-        return this.kvStore.forEachValueChunk(key, only, (chunk, index) => {
+        return this.kvStore.forEachPartialValueChunk(key, only, (chunk, index) => {
 
             const messageId = `${index}_${originalMessageId}`;
 

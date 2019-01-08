@@ -1,6 +1,8 @@
-const Value = require('../../components/Value');
-const PartialValue = require('../../components/PartialValue');
-const PartialValueWriteStream = require('../../components/PartialValueWriteStream');
+const { Writable } = require('stream');
+const WrappedReadStream = require('../../../../../utils/WrappedReadStream');
+const WrappedWriteStream = require('../../../../../utils/WrappedWriteStream');
+const BlockNotFoundError = require('../../../../../blocks/components/errors/BlockNotFoundError');
+const ValueNotFoundError = require('../../../../components/errors/ValueNotFoundError');
 const BlockPartialValue = require('./components/BlockPartialValue');
 const KVStore = require('../../KVStore');
 
@@ -11,46 +13,41 @@ class BlockKVStore extends KVStore {
         this.storage = storage;
     }
 
-    getValue(key) {
+    createDataReadStream(key, streamOptions = null) {
 
-        return new Promise((resolve, reject) => {
+        const source = this.storage.createBlockReadStream(key);
+        const errorTransform = err => {
 
-            let currentChunk = null;
-            let length = 0;
+            if (err instanceof BlockNotFoundError) {
+                err = new ValueNotFoundError();
+            }
+            return err;
+        };
 
-            this.storage.createBlockReadStream(key)
-                .on('error', reject)
-                .on('data', chunk => {
+        return new WrappedReadStream(source, errorTransform, streamOptions);
+    }
 
-                    currentChunk = chunk;
-                    length+= chunk.length;
-                })
-                .on('end', () => {
+    createDataWriteStream(key) {
 
-                    const type = length > PartialValue.SIZE ? Value.TYPE_PARTIAL : Value.TYPE_RAW;
-                    const data = type === Value.TYPE_RAW ? currentChunk : currentChunk.length;
+        let block = null;
+        const initializeSource = () => {
 
-                    resolve(type, data);
+            return this.storage.createNewBlock(key)
+                .then(_block => {
+                    block = _block;
+                    return _block.createWriteStream();
                 });
-        });
+        };
+        const onWrite = () => Promise.resolve();
+        const onEnd = () => block.save();
+
+        return new WrappedWriteStream(initializeSource, onWrite, onEnd);
     }
 
     createPartialValue(key, length) {
 
         return this.storage.createNewBlock(key)
             .then(block => new BlockPartialValue(key, length, block));
-    }
-
-    forEachValueChunk(key, only, forEachCallback) {
-
-        return new Promise((resolve, reject) => {
-
-            this.storage.createBlockReadStream(key)
-                .on('error', reject)
-                .pipe(new PartialValueWriteStream(only, forEachCallback))
-                .on('error', reject)
-                .on('finish', resolve);
-        });
     }
 }
 
