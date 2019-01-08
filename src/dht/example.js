@@ -1,7 +1,7 @@
 const KVStore = require('./components/kv-store/implementations/memory/MemoryKVStore');
 const DHT = require('./implementations/kademlia/KademliaDHT');
 const KeyGenerator = require('../utils/KeyGenerator');
-const Block = require('../blocks/Block');
+const createHash = require('../utils/createHash');
 
 const keyGenerator = new KeyGenerator();
 let data = '';
@@ -27,7 +27,7 @@ keyGenerator.getKeys()
     })
     .then(dht => {
 
-        const key = Block.createHash().update(data).digest('hex');
+        const key = createHash().update(data).digest('hex');
 
         return dht.kvStore.saveRawValueData(key, data)
             .then(() => {

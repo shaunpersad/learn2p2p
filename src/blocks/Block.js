@@ -1,14 +1,7 @@
 const crypto = require('crypto');
-const { Readable, Transform, Writable } = require('stream');
+const { Readable, Writable } = require('stream');
+const MetadataExtractor = require('./components/codec/components/MetadataExtractor');
 
-const InvalidBlockError = require('./components/errors/InvalidBlockError');
-
-const HASH = Symbol('hash');
-const LINKS = Symbol('links');
-const LENGTH = Symbol('length');
-
-const STATE_DATA = Symbol('data state');
-const STATE_LINKS = Symbol('links state');
 
 /**
  * Blocks are pieces of data + links to other data.
@@ -92,7 +85,7 @@ class Block {
         return Promise.resolve(this);
     }
 
-    unReserve() {
+    free() {
         return Promise.resolve(this);
     }
 
@@ -108,6 +101,24 @@ class Block {
     }
 
     /**
+     *
+     * @returns {Promise<{ hash: string, links: [], length: number }>}
+     */
+    getMetadata() {
+
+        return new Promise((resolve, reject) => {
+
+            const metadataExtractor = new MetadataExtractor();
+
+            this.createReadStream()
+                .on('error', reject)
+                .pipe(metadataExtractor)
+                .on('error', reject)
+                .on('finish', () => resolve(metadataExtractor[MetadataExtractor.METADATA]));
+        });
+    }
+
+    /**
      * All hashes are created using SHA256.
      *
      * @returns {Hash}
@@ -116,72 +127,6 @@ class Block {
 
         return crypto.createHash('sha256');
     }
-
-    /**
-     * This creates a "pass-through" stream,
-     * which simply collects a block's metadata
-     * as its contents are passed through.
-     *
-     * The metadata returned are its hash, links, and length.
-     * We can get this metadata from the stream after it is complete
-     * by accessing the relevant properties from the stream object.
-     *
-     * @returns {Transform}
-     */
-    static extractMetadata() {
-
-        const SIZE = this.SIZE;
-        const hash = this.createHash();
-        const links = [];
-        let state = STATE_DATA;
-        let currentHash = '';
-        let length = 0;
-
-        return new Transform({
-            transform(chunk, encoding, callback) {
-
-                hash.update(chunk); // continuously update the hash
-                length+= chunk.length; // record the overall length
-
-                [...chunk.toString('utf8')].forEach(c => {
-
-                    switch(state) {
-                        case STATE_DATA:
-                            if (c === '\n') { // wait for the first new line to begin looking at links
-                                state = STATE_LINKS;
-                            }
-                            break;
-                        case STATE_LINKS:
-                            if (c === '\n') { // we've reached the end of a link
-                                links.push(currentHash);
-                                currentHash = '';
-                            } else {
-                                currentHash+= c;
-                            }
-                            break;
-                    }
-                });
-
-                callback(null, chunk);
-            },
-            flush(callback) {
-
-                if (length > SIZE) {
-                    return callback(new InvalidBlockError(`Data must be a maximum of ${SIZE} bytes.`));
-                }
-
-                if (currentHash) {
-                    links.push(currentHash);
-                }
-
-                this[HASH] = hash.digest('hex');
-                this[LINKS] = links;
-                this[LENGTH] = length;
-                callback();
-            }
-        });
-    }
-
 
     /**
      * Every block is a maximum of 160 bytes.
@@ -195,23 +140,6 @@ class Block {
      */
     static get MAX_NUM_LINKS() {
         return 2;
-    }
-
-    /**
-     * Below are the accessors to use on the extractMetadata stream
-     * in order to retrieve its metadata.
-     */
-
-    static get HASH() {
-        return HASH;
-    }
-
-    static get LINKS() {
-        return LINKS;
-    }
-
-    static get LENGTH() {
-        return LENGTH;
     }
 }
 

@@ -2,7 +2,6 @@ const http = require('http');
 
 const KeyGenerator = require('../../utils/KeyGenerator');
 const closeServerOnExit = require('../../utils/closeServerOnExit');
-const getPublicIP = require('../../utils/getPublicIP');
 const getSocket = require('../../utils/getSocket');
 
 const Storage = require('../../blocks/components/storage/implementations/filesystem/FilesystemStorage');

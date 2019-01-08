@@ -90,7 +90,12 @@ class KademliaDHT extends DHT {
 
         return this.findClosestNodes(key, 'key').then(({ value, nodesWithValues }) => {
 
-            const getValue = node => {
+            const getValue = () => {
+
+                const node = nodesWithValues.pop();
+                if (!node) {
+                    throw new ValueNotFoundError('No suitable nodes found with this value.');
+                }
 
                 let p = Promise.resolve();
                 switch (value.type) {
@@ -103,15 +108,10 @@ class KademliaDHT extends DHT {
 
                 }
 
-                return p.then(() => value).catch(err => {
-                    if (nodesWithValues.length) {
-                        return getValue(nodesWithValues.pop());
-                    }
-                    throw err;
-                });
+                return p.then(() => value).catch(err => getValue());
             };
 
-            return getValue(nodesWithValues.pop());
+            return getValue();
         });
     }
 

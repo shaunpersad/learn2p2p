@@ -1,10 +1,6 @@
-const { Readable } = require('stream');
 const Base64 = require('b64');
 const StringStream = require('../../../utils/StringStream');
 const DataStitcher = require('./components/DataStitcher');
-
-const BlockNotFoundError = require('../errors/BlockNotFoundError');
-
 const Block = require('../../Block');
 
 /**
@@ -164,16 +160,7 @@ class Codec {
 
     getBlockLinks(hash) {
 
-        return new Promise((resolve, reject) => {
-
-            const extractMetadata = Block.extractMetadata();
-
-            this.storage.createBlockReadStream(hash)
-                .on('error', reject)
-                .pipe(extractMetadata)
-                .on('error', reject)
-                .on('finish', () => resolve(extractMetadata[Block.LINKS]));
-        });
+        return this.storage.getBlockMetadata(hash).then(({ links }) => links);
     }
 }
 

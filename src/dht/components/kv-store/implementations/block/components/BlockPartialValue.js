@@ -12,7 +12,7 @@ class BlockPartialValue extends PartialValue {
     }
 
     pause() {
-        this.block.unReserve();
+        this.block.free();
     }
 
     add(chunk, index = 0) {

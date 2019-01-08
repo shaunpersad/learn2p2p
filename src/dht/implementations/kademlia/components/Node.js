@@ -1,4 +1,4 @@
-const Block = require('../../../../blocks/Block');
+const createHash = require('../../../../utils/createHash');
 
 class Node {
 
@@ -25,7 +25,7 @@ class Node {
 
     static fromPublicKey(publicKey, address, port, nodeId) {
 
-        const id = Block.createHash().update(publicKey).digest('hex');
+        const id = createHash().update(publicKey).digest('hex');
 
         if (nodeId && (id !== nodeId)) {
             throw new Error('Node ID did not originate from this public key.');

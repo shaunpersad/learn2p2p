@@ -56,29 +56,19 @@ class MemoryBlock extends Block {
 
     save() {
 
-        return new Promise((resolve, reject) => {
+        return this.getMetadata().then(({ hash }) => {
 
-            const extractMetadata = Block.extractMetadata();
+            const value = this.memory[this.key];
+            delete this.memory[this.key];
 
-            this.createReadStream()
-                .on('error', reject)
-                .pipe(extractMetadata)
-                .on('error', reject)
-                .on('finish', () => {
+            if (this.intendedHash && hash !== this.intendedHash) {
+                throw new InvalidBlockError();
+            }
 
-                    const hash = extractMetadata[Block.HASH];
-                    const value = this.memory[this.key];
-                    delete this.memory[this.key];
+            this.memory[hash] = value;
+            this.key = hash;
 
-                    if (this.intendedHash && hash !== this.intendedHash) {
-                        return reject(new InvalidBlockError());
-                    }
-
-                    this.memory[hash] = value;
-                    this.key = hash;
-
-                    resolve(hash);
-                });
+            return hash;
         });
     }
 

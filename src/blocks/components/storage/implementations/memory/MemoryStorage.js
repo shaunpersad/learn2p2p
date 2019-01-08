@@ -38,11 +38,6 @@ class MemoryStorage extends Storage {
             }
         }));
     }
-
-    getBlockLength(hash) {
-
-        return Promise.resolve(this.memory[hash] ? this.memory[hash].length : 0);
-    }
 }
 
 module.exports = MemoryStorage;

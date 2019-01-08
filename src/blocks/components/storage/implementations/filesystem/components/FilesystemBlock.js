@@ -45,27 +45,15 @@ class FilesystemBlock extends Block {
 
     save() {
 
-        const beforeSave = this.fd ? this.unReserve() : Promise.resolve();
+        const beforeSave = this.fd ? this.free() : Promise.resolve();
 
         return beforeSave
             .then(() => truncate(this.filePath, this.length))
-            .then(() => {
-
-                return new Promise((resolve, reject) => {
-
-                    const extractMetadata = Block.extractMetadata();
-
-                    this.createReadStream()
-                        .on('error', reject)
-                        .pipe(extractMetadata)
-                        .on('error', reject)
-                        .on('finish', () => resolve(extractMetadata[Block.HASH]));
-                });
-            })
-            .then(hash => {
+            .then(() => this.getMetadata())
+            .then(({ hash }) => {
 
                 if (this.intendedHash && hash !== this.intendedHash) {
-                    return Promise.reject(new InvalidBlockError());
+                    throw new InvalidBlockError();
                 }
                 
                 const filePath = this.filePath;
@@ -78,7 +66,7 @@ class FilesystemBlock extends Block {
 
     destroy() {
 
-        const beforeDestroy = this.fd ? this.unReserve() : Promise.resolve();
+        const beforeDestroy = this.fd ? this.free() : Promise.resolve();
 
         return beforeDestroy.then(() => removeFile(this.filePath));
     }
@@ -106,7 +94,7 @@ class FilesystemBlock extends Block {
     }
 
 
-    unReserve() {
+    free() {
 
         return close(this.fd)
             .then(() => this.fd = null)

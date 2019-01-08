@@ -1,5 +1,6 @@
 const { Readable } = require('stream');
 const Block = require('../../Block');
+const MetadataExtractor = require('../codec/components/MetadataExtractor');
 
 /**
  * ABSTRACT CLASS
@@ -30,12 +31,18 @@ class Storage {
         return new Readable(streamOptions);
     }
 
-    /**
-     * @param {string} hash
-     * @returns {Promise<number>}
-     */
-    getBlockLength(hash) {
-        return Promise.resolve(0);
+    getBlockMetadata(hash) {
+
+        return new Promise((resolve, reject) => {
+
+            const metadataExtractor = new MetadataExtractor();
+
+            this.createBlockReadStream(hash)
+                .on('error', reject)
+                .pipe(metadataExtractor)
+                .on('error', reject)
+                .on('finish', () => resolve(metadataExtractor[MetadataExtractor.METADATA]));
+        });
     }
 }
 
