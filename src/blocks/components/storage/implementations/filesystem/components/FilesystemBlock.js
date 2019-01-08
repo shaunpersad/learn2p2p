@@ -10,7 +10,6 @@ const removeFile = util.promisify(fs.unlink);
 
 const InvalidBlockError = require('../../../../../components/errors/InvalidBlockError');
 const WrappedWriteStream = require('../../../../../../utils/WrappedWriteStream');
-const BlockWriteStream = require('./BlockWriteStream');
 
 const Block = require('../../../../../Block');
 
