@@ -7,11 +7,13 @@ const storage = new Storage(); // a place to store generated blocks
 const codec = new Codec(storage); // performs data <=> hash conversions
 
 const content = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque interdum rutrum sodales. Nullam mattis fermentum libero, non volutpat.';
+let assembled = '';
 
 codec.encode(new StringStream(content))
     .then(hash => {
 
-        let assembled = '';
+        console.log('hash', hash);
+
 
         return codec.decode(hash, new Writable({
             write(chunk, encoding, callback) {
@@ -21,4 +23,5 @@ codec.encode(new StringStream(content))
         })).then(() => assembled);
     })
     .then(console.log)
+    .then(() => console.log('correct:', assembled === content))
     .catch(console.log);

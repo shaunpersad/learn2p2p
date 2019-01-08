@@ -30,7 +30,7 @@ class Value {
                 .on('end', () => {
 
                     const type = length > PartialValue.SIZE ? Value.TYPE_PARTIAL : Value.TYPE_RAW;
-                    const data = type === Value.TYPE_RAW ? currentChunk : currentChunk.length;
+                    const data = type === Value.TYPE_RAW ? currentChunk.toString() : currentChunk.length;
 
                     resolve(new Value(type, data));
                 });

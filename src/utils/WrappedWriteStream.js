@@ -20,6 +20,7 @@ class WrappedWriteStream extends Writable {
         this[INITIALIZE_SOURCE] = initializeSource;
         this[ON_WRITE] = onWrite;
         this[ON_END] = onEnd;
+        this.id = Math.random();
     }
 
     _write(chunk, encoding, callback) {
@@ -40,7 +41,9 @@ class WrappedWriteStream extends Writable {
     }
 
     _final(callback) {
-        this[SOURCE].end();
+        if (this[SOURCE]) {
+            this[SOURCE].end();
+        }
         this[ON_END]().then(() => callback()).catch(callback);
     }
 }

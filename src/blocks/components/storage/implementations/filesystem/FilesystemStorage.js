@@ -28,7 +28,7 @@ class FilesystemStorage extends Storage {
 
     createNewBlock(intendedHash = null) {
 
-        return this.createTempFilePath(intendedHash)
+        return this.createTempFile(intendedHash)
             .then(tempFilePath => new FilesystemBlock(tempFilePath, this.createBlockPath, intendedHash));
     }
 

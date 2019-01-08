@@ -20,23 +20,24 @@ keyGenerator.getKeys()
     })
     .then(dht => {
 
-        const value = `${Math.random()}`;
-        const key = Block.createHash().update(value).digest('hex');
+        const data = `${Math.random()}`;
+        const key = Block.createHash().update(data).digest('hex');
 
-        return new Promise((resolve, reject) => {
+        return dht.kvStore.saveRawValueData(key, data)
+            .then(() => {
 
-            setTimeout(() => {
+                return new Promise((resolve, reject) => {
 
-                console.log('saving', key, value);
+                    setTimeout(() => {
 
-                dht.save(key, value).then(resolve).catch(reject);
+                        console.log('saving', key, data);
 
-            }, 10000);
+                        dht.upload(key).then(resolve).catch(reject);
 
-        }).then(result => {
+                    }, 10000);
+                });
+            })
+            .then(result => console.log(result) || dht.download(key))
+            .then(value => console.log('value', value));
 
-            console.log('result', result);
-            return dht.fetch(key);
-
-        }).then(value => console.log('value', value));
     });

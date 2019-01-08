@@ -222,7 +222,9 @@ class RPC {
         return this.sendMessageAndWait(10000, toNode, 'STORE', { key, value });
     }
 
-    handleStoreRequest(fromNode, { key, value: { type, data } }, messageId) {
+    handleStoreRequest(fromNode, content, messageId) {
+
+        const { key, value: { type, data } } = content;
 
         const p = type === Value.TYPE_RAW
             ? this.kvStore.saveRawValueData(key, data)

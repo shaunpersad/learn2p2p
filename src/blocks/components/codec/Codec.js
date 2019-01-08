@@ -8,10 +8,7 @@ const BlockNotFoundError = require('../errors/BlockNotFoundError');
 const Block = require('../../Block');
 
 /**
- * Provides utility functions to encode data into blocks,
- * to upload blocks to the DHT,
- * to download blocks from the DHT,
- * and to decode blocks into data.
+ * Provides utility functions to encode data into blocks and to decode blocks into data.
  */
 class Codec {
 
@@ -80,7 +77,6 @@ class Codec {
              * If there are no more links to create, save the root block.
              */
             if (!numLinks) {
-
                 return rootBlock.save();
             }
 
