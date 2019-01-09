@@ -21,7 +21,7 @@ class FetchOperation extends Operation {
 
     responseHandler(res) {
 
-        const writeFile = fs.createWritableStream(this.destination).on('error', this.errorHandler);
+        const writeFile = fs.createWriteStream(this.destination).on('error', this.errorHandler);
 
         res.pipe(writeFile).on('finish', () => console.log('File downloaded.'));
     }

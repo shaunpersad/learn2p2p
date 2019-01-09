@@ -263,7 +263,7 @@ class RPC {
         return this.handlePingRequest(forwardToNode, publicKey, messageId);
     }
 
-    issuePartialValueRequest(toNode, key, length, only = []) {
+    issuePartialValueRequest(toNode, key, length, only = [], startTime = Date.now()) {
 
         const type = 'PARTIAL_VALUE';
         const content = { key, only };
@@ -279,24 +279,9 @@ class RPC {
 
                         return new Promise((resolve, reject) => {
 
-                            let chunksCount = 0;
                             let t;
                             const makeTimeout = () => {
-                                t = setTimeout(() => {
-
-                                    if (!chunks.size) {
-                                        return resolve();
-                                    }
-
-                                    if (chunksCount === chunks.size) {
-                                        return reject(new Error('No progress made.'));
-                                    }
-
-                                    chunksCount = chunks.size;
-
-                                    makeTimeout();
-
-                                }, 5 * 1000);
+                                t = setTimeout(() => reject(new Error('Timeout reached.')), 2 * 1000);
                             };
 
                             for(let x = 0; x < length; x+= PartialValue.SIZE) {
@@ -304,7 +289,6 @@ class RPC {
                                 if (!only.length || only.includes(x)) {
 
                                     chunks.add(x);
-                                    chunksCount++;
 
                                     const requestId = `${x}_${messageId}`;
                                     requests.push(requestId);
@@ -313,20 +297,18 @@ class RPC {
                                         resolve: ({ id, content }) => {
 
                                             const x = parseInt(id.split('_')[0]);
+                                            clearTimeout(t);
 
                                             return partialValue.add(content, x)
                                                 .then(() => {
                                                     chunks.delete(x);
                                                     if (!chunks.size) {
-                                                        clearTimeout(t);
                                                         resolve();
+                                                    } else {
+                                                        makeTimeout();
                                                     }
                                                 })
-                                                .catch(err => {
-
-                                                    clearTimeout(t);
-                                                    reject(err);
-                                                });
+                                                .catch(reject);
                                         }
                                     };
                                 }
@@ -343,11 +325,15 @@ class RPC {
                                 }
                             });
 
+                            if (Date.now() - startTime > 30 * 1000) {
+                                throw new Error('Maximum timeout reached.');
+                            }
+
                             console.log('chunks.size', chunks.size, 'only.length', only.length);
 
                             if (!only.length || chunks.size < only.length) {
                                 return partialValue.pause()
-                                    .then(() => this.issuePartialValueRequest(toNode, key, length, Array.from(chunks)));
+                                    .then(() => this.issuePartialValueRequest(toNode, key, length, Array.from(chunks)), startTime);
                             }
 
                             throw err;

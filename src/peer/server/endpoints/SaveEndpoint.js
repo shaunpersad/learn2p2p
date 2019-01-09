@@ -5,15 +5,14 @@ class SaveEndpoint extends Endpoint {
     uploadWithLinks(hash) {
 
         return this.dht.upload(hash) // save the block's location into the DHT
-            .then(() => this.codec.getBlockLinks(hash))
+            .then(result => console.log(result) || this.codec.getBlockLinks(hash))
             .then(links => {
 
-                if (!links.length) {
-                    return hash;
+                if (links.length) {
+                    return Promise.all(links.map(hash => this.uploadWithLinks(hash)));
                 }
-
-                return Promise.all(links.map(hash => this.uploadWithLinks(hash)));
-            });
+            })
+            .then(() => hash);
     }
 
     handler(req, res) {

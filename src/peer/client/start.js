@@ -15,7 +15,7 @@ switch (command) {
     case 'save':
         const [ source ] = args;
         const SaveOperation = require('./operations/SaveOperation');
-        operation = new SaveOperation(source);
+        operation = new SaveOperation(require('path').resolve(process.cwd(), source));
         break;
     default:
         return console.log('No valid command found.');

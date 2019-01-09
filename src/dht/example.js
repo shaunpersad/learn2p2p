@@ -28,6 +28,7 @@ keyGenerator.getKeys()
     .then(dht => {
 
         const key = createHash().update(data).digest('hex');
+        let started;
 
         return dht.kvStore.saveRawValueData(key, data)
             .then(() => {
@@ -38,7 +39,7 @@ keyGenerator.getKeys()
                         setTimeout(() => {
 
                             console.log('saving', key);
-
+                            started = Date.now();
                             dht.upload(key).then(resolve).catch(reject);
 
                         }, 10000);
@@ -60,6 +61,7 @@ keyGenerator.getKeys()
                             });
                         })
                         .then(console.log)
+                        .then(() => console.log(Date.now() - started))
                         .catch(err => console.error(err.message));
                 }
             });

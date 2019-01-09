@@ -16,6 +16,8 @@ class RoutingTable {
 
     addCandidate(node) {
 
+        console.log(node.id, this.rootNode.id);
+
         if (node.id === this.rootNode.id) {
             return null;
         }

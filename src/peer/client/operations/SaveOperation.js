@@ -6,6 +6,7 @@ class SaveOperation extends Operation {
     constructor(source) {
         super();
         this.source = source;
+        console.log(this.source);
     }
 
     optionsHandler(options) {
@@ -15,7 +16,7 @@ class SaveOperation extends Operation {
 
     requestHandler(req) {
 
-        const readFile = fs.createReadableStream(this.source).on('error', this.errorHandler);
+        const readFile = fs.createReadStream(this.source).on('error', this.errorHandler);
 
         readFile.pipe(req);
     }

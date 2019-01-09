@@ -19,7 +19,7 @@ class KademliaDHT extends DHT {
         }
     }
 
-    constructor(kvStore, publicKey, privateKey, dhtPort) {
+    constructor(kvStore, publicKey, privateKey, dhtPort = null) {
 
         super(kvStore);
 
@@ -128,7 +128,9 @@ class KademliaDHT extends DHT {
         const newNodesToPing = {};
 
         if (!closestPendingNodes.length) {
-            return subjectIdKind === 'node' ? Promise.resolve(closestNodes) : Promise.reject(new ValueNotFoundError());
+            return subjectIdKind === 'node'
+                ? Promise.resolve(closestNodes)
+                : Promise.reject(new ValueNotFoundError());
         }
 
         let holePunchedNodes = null;

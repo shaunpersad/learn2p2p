@@ -25,7 +25,9 @@ keyGenerator.getKeys()
             port: process.env.BOOTSTRAP_PORT
         };
 
-        const dht = new DHT(kvStore, publicKey, privateKey);
+        console.log(peer);
+
+        const dht = new DHT(kvStore, publicKey, privateKey, process.env.DHT_PORT);
         return dht.bootstrap(peer);
     })
     .then(dht => {
