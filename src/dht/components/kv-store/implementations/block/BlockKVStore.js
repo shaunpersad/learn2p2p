@@ -1,4 +1,3 @@
-const { Writable } = require('stream');
 const WrappedReadStream = require('../../../../../utils/WrappedReadStream');
 const WrappedWriteStream = require('../../../../../utils/WrappedWriteStream');
 const BlockNotFoundError = require('../../../../../blocks/components/errors/BlockNotFoundError');

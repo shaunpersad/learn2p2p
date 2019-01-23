@@ -137,6 +137,8 @@ class RPC {
             .then(() => this.messageProtocol.serialize(body, encrypted ? toNode.publicKey : null))
             .then(message => {
 
+                console.log('message.length', message.length);
+
                 return new Promise((resolve, reject) => {
 
                     this.server.send(message, toNode.port, toNode.address, err => {
@@ -220,7 +222,7 @@ class RPC {
 
     issueStoreRequest(toNode, key, value) {
 
-        return this.sendMessageAndWait(10000, toNode, 'STORE', { key, value });
+        return this.sendMessageAndWait(10000, toNode, 'STORE', { key, value }, value.type === Value.TYPE_PARTIAL);
     }
 
     handleStoreRequest(fromNode, content, messageId) {
@@ -233,7 +235,7 @@ class RPC {
 
         return p
             .then(() => true)
-            .catch(err => false)
+            .catch(err => console.log(err) || false)
             .then(content => this.reply(fromNode, messageId, 'STORE', content));
     }
 
@@ -267,7 +269,7 @@ class RPC {
 
         const type = 'PARTIAL_VALUE';
         const content = { key, only };
-        return this.kvStore.createPartialValue(key)
+        return this.kvStore.createPartialValue(key, length)
             .then(partialValue => partialValue.start())
             .then(partialValue => {
 
@@ -281,7 +283,7 @@ class RPC {
 
                             let t;
                             const makeTimeout = () => {
-                                t = setTimeout(() => reject(new Error('Timeout reached.')), 2 * 1000);
+                                t = setTimeout(() => reject(new Error('Timeout reached.')), 1000);
                             };
 
                             for(let x = 0; x < length; x+= PartialValue.SIZE) {

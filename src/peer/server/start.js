@@ -20,15 +20,10 @@ const kvStore = new KVStore(storage);
 keyGenerator.getKeys()
     .then(({ publicKey, privateKey }) => {
 
-        const peer = {
-            address: process.env.BOOTSTRAP_ADDRESS,
-            port: process.env.BOOTSTRAP_PORT
-        };
-
-        console.log(peer);
-
         const dht = new DHT(kvStore, publicKey, privateKey, process.env.DHT_PORT);
-        return dht.bootstrap(peer);
+        const [ address, port ] = (process.env.BOOTSTRAP || '').split(':');
+
+        return dht.bootstrap({ address, port });
     })
     .then(dht => {
 

@@ -15,15 +15,11 @@ for (let i = 0; i < 5000; i++) {
 keyGenerator.getKeys()
     .then(({ publicKey, privateKey }) => {
 
-        const peer = {
-            address: process.env.BOOTSTRAP_ADDRESS,
-            port: process.env.BOOTSTRAP_PORT
-        };
-
         const kvStore = new KVStore();
         const dht = new DHT(kvStore, publicKey, privateKey, process.env.DHT_PORT);
+        const [ address, port ] = (process.env.BOOTSTRAP || '').split(':');
 
-        return dht.bootstrap(peer);
+        return dht.bootstrap({ address, port });
     })
     .then(dht => {
 
@@ -33,7 +29,7 @@ keyGenerator.getKeys()
         return dht.kvStore.saveRawValueData(key, data)
             .then(() => {
 
-                if (!process.env.BOOTSTRAP_ADDRESS) {
+                if (!process.env.BOOTSTRAP) {
                     return new Promise((resolve, reject) => {
 
                         setTimeout(() => {

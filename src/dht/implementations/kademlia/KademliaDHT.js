@@ -62,6 +62,8 @@ class KademliaDHT extends DHT {
 
         ]).then(([ value, nodes ]) => {
 
+            console.log('value', value);
+
             const result = { success: 0, fail: 0 };
 
             return Promise.all(nodes.map(node => {
@@ -69,11 +71,13 @@ class KademliaDHT extends DHT {
                 return this.rpc.issueStoreRequest(node, key, value)
                     .catch(err => {
 
+                        console.log('error', err);
                         this.rpc.routingTable.removeNode(node.id);
                         return { content: false };
                     })
                     .then(({ content: stored }) => {
 
+                        console.log({ stored });
                         stored ? result.success++ : result.fail++;
                     });
 

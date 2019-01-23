@@ -132,14 +132,14 @@ class Block {
      * Every block is a maximum of 160 bytes.
      */
     static get SIZE() {
-        return 160;
+        return 262144;
     }
 
     /**
      * Sets the maximum number of links a block can have.
      */
     static get MAX_NUM_LINKS() {
-        return 2;
+        return 10;
     }
 }
 

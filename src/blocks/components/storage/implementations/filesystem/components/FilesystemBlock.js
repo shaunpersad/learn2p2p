@@ -27,6 +27,7 @@ class FilesystemBlock extends Block {
     createWriteStream(start = 0) {
 
         this.length = start;
+        console.log('setting length to', start);
 
         const initializeSource = () => fs.createWriteStream(this.filePath, { flags: 'r+', start });
         const onWrite = chunk => this.length+= chunk.length;
@@ -53,6 +54,9 @@ class FilesystemBlock extends Block {
             .then(({ hash }) => {
 
                 if (this.intendedHash && hash !== this.intendedHash) {
+                    console.log('intended', this.intendedHash);
+                    console.log('actual', hash);
+                    console.log('length', this.length)
                     throw new InvalidBlockError();
                 }
                 
@@ -78,6 +82,7 @@ class FilesystemBlock extends Block {
 
                 return ftruncate(fd, length).then(() => {
                     this.length = length;
+                    console.log('setting length to', length);
                     this.fd = fd;
                     return this;
                 });
