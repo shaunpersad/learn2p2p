@@ -16,12 +16,30 @@ const SaveEndpoint = require('./endpoints/SaveEndpoint');
 const keyGenerator = new KeyGenerator();
 const storage = new Storage();
 const kvStore = new KVStore(storage);
+const args = process.argv.slice(2) || [];
+let dhtPort = process.env.DHT_PORT;
+let bootstrap = process.env.BOOTSTRAP;
+let command = '';
+args.forEach((arg, index) => {
+    if (!(index % 2)) {
+        command = arg;
+    } else {
+        switch (command) {
+            case '-p':
+                dhtPort = arg;
+                break;
+            case '-b':
+                bootstrap = arg;
+                break;
+        }
+    }
+});
 
 keyGenerator.getKeys()
     .then(({ publicKey, privateKey }) => {
 
-        const dht = new DHT(kvStore, publicKey, privateKey, process.env.DHT_PORT);
-        const [ address, port ] = (process.env.BOOTSTRAP || '').split(':');
+        const dht = new DHT(kvStore, publicKey, privateKey, dhtPort || null);
+        const [ address, port ] = (bootstrap || '').split(':');
 
         return dht.bootstrap({ address, port });
     })
