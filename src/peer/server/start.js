@@ -47,7 +47,7 @@ keyGenerator.getKeys()
 
         const codec = new Codec(storage);
         const server = http.createServer();
-        const socket = getSocket();
+        const socket = getSocket(true);
         let Endpoint = DefaultEndpoint;
 
         server.on('request', (req, res) => {
