@@ -1,4 +1,4 @@
-const { Transform } = require('stream');
+const { Writable } = require('stream');
 const createHash = require('../../../../utils/createHash');
 const InvalidBlockError = require('../../../components/errors/InvalidBlockError');
 const Block = require('../../../Block');
@@ -23,7 +23,7 @@ const STATE_LINKS = Symbol('links state');
  * by accessing the METADATA property from the stream object.
  *
  */
-class MetadataExtractor extends Transform {
+class MetadataExtractor extends Writable {
 
     constructor(streamOptions) {
         super(streamOptions);
@@ -35,7 +35,7 @@ class MetadataExtractor extends Transform {
         this[LENGTH] = 0;
     }
 
-    _transform(chunk, encoding, callback) {
+    _write(chunk, encoding, callback) {
 
         this[HASH].update(chunk); // continuously update the hash
         this[LENGTH]+= chunk.length; // record the overall length
@@ -59,10 +59,10 @@ class MetadataExtractor extends Transform {
             }
         });
 
-        callback(null, chunk);
+        callback();
     }
 
-    _flush(callback) {
+    _final(callback) {
 
         if (this[LENGTH] > Block.SIZE) {
             return callback(new InvalidBlockError(`Data must be a maximum of ${Block.SIZE} bytes.`));

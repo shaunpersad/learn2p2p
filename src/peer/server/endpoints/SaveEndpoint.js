@@ -17,10 +17,11 @@ class SaveEndpoint extends Endpoint {
 
     handler(req, res) {
 
+        console.log('encoding');
         this.codec.encode(req)
-            .then(hash => this.uploadWithLinks(hash))
-            .catch(err => err.message)
-            .then(payload => res.end(payload));
+            .then(hash => console.log('uploading') || this.uploadWithLinks(hash))
+            .catch(err => res.end(err.message))
+            .then(payload => console.log('finished uploading') || res.end(payload));
     }
 }
 
