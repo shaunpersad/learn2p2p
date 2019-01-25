@@ -70,6 +70,7 @@ class RPC {
 
                     if (!verifySignature(node.publicKey)) {
 
+                        console.log('could not verify signature');
                         return this.routingTable.removeNode(node.id);
                     }
 
@@ -89,14 +90,14 @@ class RPC {
                             }
                         }),
                         Promise.resolve().then(() => {
-                            //
-                            // console.log('handling message', id);
+
+                            console.log('handling message', id);
                             // console.log('handling received message of type', type);
                             // console.log('pending request', this.pendingRequests[id]);
 
                             if (this.pendingRequests[id] && type === `${this.pendingRequests[id].type}_REPLY`) {
 
-                                //console.log('resolving');
+                                console.log('resolving');
 
                                 const { resolve } = this.pendingRequests[id];
                                 delete this.pendingRequests[id];
@@ -105,10 +106,10 @@ class RPC {
 
                             } else if (!type.endsWith('_REPLY')) {
 
-                                //console.log('request handler');
+                                console.log('request handler');
                                 return this.requestHandler(node, type, content, id);
                             } else {
-                                //console.log('doing nothing');
+                                console.log('doing nothing');
                             }
                         })
                     ]);
@@ -141,6 +142,7 @@ class RPC {
 
                 return new Promise((resolve, reject) => {
 
+                    console.log('ip', toNode.address, 'port', toNode.port);
                     this.server.send(message, toNode.port, toNode.address, err => {
 
                         err ? reject(err) : resolve(body.id);

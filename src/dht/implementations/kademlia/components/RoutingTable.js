@@ -14,19 +14,27 @@ class RoutingTable {
         }
     }
 
-    addCandidate(node) {
+    get length() {
 
-        console.log(node.id, this.rootNode.id);
+        return this.buckets.reduce((length, bucket) => {
+
+            return length + bucket.nodes.length + bucket.cache.nodeIds.length;
+        }, 0);
+    }
+
+    addCandidate(node) {
 
         if (node.id === this.rootNode.id) {
             return null;
         }
+        console.log('added', node.id);
 
         const distance = this.constructor.xor(node.id, this.rootNode.id);
         const bucketIndex = this.getBucketIndex(distance);
         const bucket = this.buckets[bucketIndex];
 
         if (bucket.save(node)) {
+            console.log('Num nodes:', )
             return null;
         }
 
@@ -81,6 +89,7 @@ class RoutingTable {
         const bucketIndex = this.getBucketIndex(distance);
         const bucket = this.buckets[bucketIndex];
 
+        console.log('removing', nodeId);
         bucket.removeNode(nodeId);
     }
 

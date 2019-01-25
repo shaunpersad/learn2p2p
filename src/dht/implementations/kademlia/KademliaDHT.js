@@ -41,6 +41,7 @@ class KademliaDHT extends DHT {
                     return this.rpc.issuePingRequest(bootstrapNode)
                         .then(() => console.log('--- finding closest nodes ---') || this.findClosestNodes())
                         .then(() => console.log('--- refreshing buckets ---') || this.refreshBuckets())
+                        .then(() => console.log('--- num nodes:', this.rpc.routingTable.length, '---'))
                         .then(() => console.log('--- setting up timers ---') || this.setupTimers())
                         .then(() => console.log('--- bootstrapping complete ---'))
                         .catch(console.log);
