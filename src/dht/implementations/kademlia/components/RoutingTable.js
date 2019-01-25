@@ -34,7 +34,7 @@ class RoutingTable {
         const bucket = this.buckets[bucketIndex];
 
         if (bucket.save(node)) {
-            console.log('Num nodes:', )
+            console.log('Num nodes:', this.length);
             return null;
         }
 
